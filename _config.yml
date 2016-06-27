@@ -48,6 +48,7 @@ default_category: uncategorized
 category_map:
 	工作:work
 	生活:life
+  英语:english
 	其他:other
 tag_map:
 

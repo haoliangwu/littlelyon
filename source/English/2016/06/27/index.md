@@ -1,0 +1,41 @@
+---
+title: 20160627
+date: 2016-06-27 15:21:00
+---
+
+# 进程
+**C8U4**的前两组sentences 
+
+# 作业
+**C8U4**剩余的sentences和short dialogues(optional)
+
+# 记录
+
+shortage 短缺
+> a shortage of ...(funds, ideas, water)
+
+under/over weight 短重/超重
+> the goods are under weight.
+
+inferior/superior quality 质量很差
+> I feel inferior to someone. 我觉的我比别人低一等。
+
+replace 代替
+> A replace B = sb replace B with A.
+
+adequate/inadequate 足够的/不足够的
+> the resource is adequate for us.
+
+omission/omit 忽略，遗漏
+> the omission 't' in word 'shorage' is incorrect.
+
+reinforce 巩固，加强
+> refinforce evidence 提供证据
+
+minimize/maxmize 最小化/最大化
+> minimize ...(risks, problems, unpleasant situations)
+
+sell out 售罄
+> the shoes have been sell out.
+
+
