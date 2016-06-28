@@ -15,6 +15,10 @@ menu:
     path: /English/
     icon: fa fa-file
 
+  - name: RSS
+    path: /atom.xml
+    icon: fa fa-rss-square
+
 favicon: /favicon.ico
 logo: /favicon.ico
 
