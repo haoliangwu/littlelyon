@@ -1,9 +1,19 @@
 menu:
-    Home: /
-    Archives: /archives/
-    English: /English/
-    GitHub: https://github.com/haoliangwu
-    Rss: /atom.xml
+  - name: Blog
+    path: /
+    icon: fa fa-home
+
+  - name: Archive
+    path: /archives/
+    icon: fa fa-folder-open-o
+
+  - name: GitHub
+    path: https://github.com/haoliangwu
+    icon: fa fa-github-alt
+
+  - name: English
+    path: /English/
+    icon: fa fa-file
 
 favicon: /favicon.ico
 logo: /favicon.ico
