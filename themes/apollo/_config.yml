@@ -12,12 +12,12 @@ menu:
     icon: fa fa-github-alt
 
   - name: English
-    path: /English/
+    path: /english/
     icon: fa fa-file
 
-  - name: RSS
-    path: /atom.xml
-    icon: fa fa-rss-square
+  - name: About
+    path: http://www.lagou.com/resume/preview.html
+    icon: fa fa-info
 
 favicon: /favicon.ico
 logo: /favicon.ico
