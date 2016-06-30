@@ -7,6 +7,7 @@ mixin postInfo(item)
 //- Index Page
 mixin posts()
     ul.home.post-list
+        - var tagsClouldOpts = {start_color: 'gray', end_color: 'black', color:true}
         - page.posts.each(function (item) {
             li.post-list-item
                 article.post-block
@@ -17,6 +18,8 @@ mixin posts()
                     .post-content
                         != item.excerpt
                     a.read-more(href= url_for(item.path))!= __('more')
+                    .post-tags
+                        != tagcloud(item.tags, tagsClouldOpts)
         - })
 
 //- Archive Page
@@ -46,3 +49,4 @@ mixin post(item)
             +postInfo(item)
             .post-content
                 != item.content
+            
