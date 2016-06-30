@@ -7,10 +7,6 @@ menu:
     path: /archives/
     icon: fa fa-folder-open-o
 
-  - name: English
-    path: /tags/english
-    icon: fa fa-file
-
   - name: GitHub
     path: https://github.com/haoliangwu
     icon: fa fa-github-alt
