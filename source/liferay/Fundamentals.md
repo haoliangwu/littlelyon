@@ -97,7 +97,9 @@ Bundle-SymbolicName: hello.world.provider-service
 Export-Package: com.provider.impl
 
 ```
-因为它要实现API模块，因此它实际上是依赖于API模块，因此需要编辑build.gradle如下
+这里注意一点，虽然原则上，我们是不应该export具体实现的，但是因为是demo，所以我们没有使用Spring来通过接口注入实例对象，所以我们只能通过export具体实现来使Consumer可以访问它。
+
+同时，因为它要实现API模块，因此它实际上是依赖于API模块，因此需要编辑build.gradle如下
 ```
 dependencies {
 	compile group: "biz.aQute.bnd", name: "biz.aQute.bndlib", version: "3.1.0"
