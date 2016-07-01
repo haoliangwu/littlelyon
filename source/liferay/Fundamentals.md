@@ -56,3 +56,126 @@ Web模块，也叫作Consumer模块，这种模块通过使用服务来实现逻
 测试模块，当然是负责测试工作的，这部分模块仅仅在开发环境才有意义，它们不会被加载到生产环境中，仅仅会在开发环境中确保其他3种类型模块的质量。
 
 # 开发一个hello-world项目
+首先借助官方的项目脚手架**blade**来生成一个项目结构，由于没有单一的api、provider、consumer模板，所以我们分别创建一个service-builder和mvcportlet项目。
+
+创建hello-world-consumer项目，
+```
+blade create -t mvcportlet -p com.example.portlet -c HelloWorldConsumermvcportletPortlet hello-world-consumer
+```
+创建hello-world-provider项目，
+```
+blade create -t servicebuilder hello-world-provider
+```
+
+### 实现API模块
+先来实现API module，如果你有IDE开发环境的话，将生成的项目hello-world-provider导入，之后进入子工程hello-world-provider-api，你会发现好多文件是按blade servicebuilder的模板构建的，但我们这里并不需要servicebuilder的东西，因此我们首先编辑bnd.bnd文件为
+```
+Bundle-Name: Hello World API
+Bundle-SymbolicName: hello.world.provider-api
+Bundle-Version: 1.0.0
+Export-Package: com.provider.api
+```
+之后我们创建一个API借口，如下，这里的包名当然要和bnd.bnd中export-package属性一致，
+```
+package com.provider.api;
+
+import aQute.bnd.annotation.ProviderType;
+
+@ProviderType
+public interface HelloWorldProvider {
+	public void hello(String name);
+}
+```
+OK，这样就实现了一个最基本的API模块。
+
+### 实现Provider模块
+实现完API模块，我们需要将它定义的模块实现，从而实现Provider。
+同样的，进入hello-world-provider的子工程hello-world-provider-service，修改bnd.bnd文件为
+```
+Bundle-Name: Hello World Service
+Bundle-SymbolicName: hello.world.provider-service
+Export-Package: com.provider.impl
+
+```
+因为它要实现API模块，因此它实际上是依赖于API模块，因此需要编辑build.gradle如下
+```
+dependencies {
+	compile group: "biz.aQute.bnd", name: "biz.aQute.bndlib", version: "3.1.0"
+	compile group: "com.liferay", name: "com.liferay.osgi.util", version: "3.0.0"
+	compile group: "com.liferay", name: "com.liferay.portal.spring.extender", version: "2.0.0"
+	compile project(":modules:hello-world-provider:hello-world-provider-api")
+}
+```
+之后创建一个实现类，如下
+```
+package com.provider.impl;
+
+import com.provider.api.HelloWorldProvider;
+import org.osgi.service.component.annotations.Component;
+
+@Component(immediate = true, property = {}, service = HelloWorldProvider.class)
+public class HelloWorldProviderImpl implements HelloWorldProvider {
+
+	@Override
+	public void hello(String name) {
+		System.out.println("Hello " + name + "!");
+	}
+}
+```
+
+### 实现Consumer模块
+完成Provider模块后，我们需要在一个模块中调用这个实现好的Service，从而充当一个Consumer的角色，我们进入hello-world-consumer项目中，因为这个一个按mvcportlet模板生成的项目，因此没有太多需要修改的东西，只需要添加依赖即可，在build.gradle中加入以下代码
+```
+dependencies {
+	compile group: "com.liferay.portal", name: "com.liferay.portal.kernel", version: "2.0.0"
+	compile group: "com.liferay.portal", name: "com.liferay.util.taglib", version: "2.0.0"
+	compile group: "javax.portlet", name: "portlet-api", version: "2.0"
+	compile group: "javax.servlet", name: "servlet-api", version: "2.5"
+	compile group: "jstl", name: "jstl", version: "1.2"
+	compile group: "org.osgi", name: "org.osgi.compendium", version: "5.0.0"
+	compile project(":modules:hello-world-provider:hello-world-provider-service")
+}
+```
+之后我们可以在portlet的标准渲染方法render中调用这个服务，因此我们需要重写MVCPortlet的render方法，如下
+```
+package com.example.portlet;
+
+import com.liferay.portal.kernel.portlet.bridges.mvc.MVCPortlet;
+import com.provider.impl.HelloWorldProviderImpl;
+
+import java.io.IOException;
+
+import javax.portlet.Portlet;
+import javax.portlet.PortletException;
+import javax.portlet.RenderRequest;
+import javax.portlet.RenderResponse;
+
+import org.osgi.service.component.annotations.Component;
+
+@Component(immediate = true, property = { "com.liferay.portlet.display-category=category.sample",
+		"com.liferay.portlet.instanceable=true", "javax.portlet.display-name=hello-world-consumer Portlet",
+		"javax.portlet.init-param.template-path=/", "javax.portlet.init-param.view-template=/view.jsp",
+		"javax.portlet.resource-bundle=content.Language",
+		"javax.portlet.security-role-ref=power-user,user" }, service = Portlet.class)
+public class HelloWorldConsumermvcportletPortlet extends MVCPortlet {
+	@Override
+	public void render(RenderRequest renderRequest, RenderResponse renderResponse)
+			throws IOException, PortletException {
+		// TODO Auto-generated method stub
+		HelloWorldProviderImpl provider = new HelloWorldProviderImpl();
+
+		provider.hello("lyon");
+
+		super.render(renderRequest, renderResponse);
+	}
+}
+```
+之后使用blade将整个项目发布到portal中
+```
+blade deploy
+```
+启动portal后在welcome页面中加一个hello-world-consumer Portlet，然后可以发现控制台会输出
+```
+Hello lyon!
+```
+证明我们的服务成功被Consumer调用了。
