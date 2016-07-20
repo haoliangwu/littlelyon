@@ -29,7 +29,7 @@ tags: [liferay，折腾，学习]
 以ubuntu为例(windows应该会更方便)，直接用apt-get安装
 
 ```
-sudo apt-get apache2
+sudo apt-get install apache2
 ```
 
 之后server的根目录是
