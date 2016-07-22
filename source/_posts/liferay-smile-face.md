@@ -15,7 +15,7 @@ tags: [liferay, css]
 
 然后山寨的是这样滴。
 
-{%iframe http://jsbin.com/fosotew/edit?output 680 500
+{%iframe http://jsbin.com/fosotew/edit?output 680 350
 %}
 
 除了这个相比原版的“嘴角上扬”无法破以外，其他基本一致了，如果有大神能有办法改的话，源码在jsbin中。
