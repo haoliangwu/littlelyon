@@ -1,7 +1,7 @@
 ---
 title: warriorjs，只能感叹城会玩
 date: 2016-07-06 10:06:04
-tags: [js，学习]
+tags: [js]
 ---
 
 昨天build bundle的时候，无意中在掘金看到的，反正build时间那么长，不如抽空“劳逸结合”一下。
