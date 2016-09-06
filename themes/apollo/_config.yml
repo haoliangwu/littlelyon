@@ -12,7 +12,7 @@ menu:
     icon: fa fa-github-alt
 
   - name: About
-    path: http://www.lagou.com/resume/preview.html
+    path: http://littlelyon.com/resume/
     icon: fa fa-info
 
 favicon: /favicon.ico
