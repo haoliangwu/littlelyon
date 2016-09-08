@@ -1,7 +1,7 @@
 ---
 title: HTML is about meaning
 date: 2016-08-10 13:05:39
-tags: [翻译, html]
+tags: [翻译,html]
 ---
 
 > 原文地址: http://marksheet.io/html-semantics.html

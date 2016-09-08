@@ -1,7 +1,7 @@
 ---
 title: liferay-progress-bar
 date: 2016-07-22 16:44:55
-tags: [liferay, css]
+tags: [liferay,css]
 ---
 上次山寨了一个smile face，最近因为一直都在测70，然后就又对70的progress bar起了兴趣。
 

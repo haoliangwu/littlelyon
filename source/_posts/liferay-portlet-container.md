@@ -1,7 +1,7 @@
 ---
 title: liferay-portlet-container
 date: 2016-07-26 17:44:46
-tags: [liferay, css]
+tags: [liferay,css]
 ---
 
 portlet是portal中最常用的组件了，所以也来山寨一个70版本的portlet container的UI吧。
