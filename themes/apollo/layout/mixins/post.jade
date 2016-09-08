@@ -7,7 +7,7 @@ mixin postInfo(item)
 //- Index Page
 mixin posts()
     ul.home.post-list
-        - var tagsClouldOpts = {start_color: 'gray', end_color: 'black', color:true}
+        - var tagsClouldOpts = {start_color: 'gray', end_color: 'black', color:true, max_font: 10, orderby: random}
         - page.posts.each(function (item) {
             li.post-list-item
                 article.post-block

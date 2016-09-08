@@ -1,7 +1,7 @@
 ---
 title: liferay和proxy server那点事
 date: 2016-07-19 16:41:41
-tags: [liferay，折腾]
+tags: [liferay]
 ---
 
 > Set up a server to use as a proxy for requests from Liferay (such as Apache web server)
