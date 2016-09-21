@@ -4,6 +4,9 @@ var base = 0, // 图片初始位置
   head = isFF ? document.documentElement.scrollTop : document.body.scrollTop, // 窗口y轴滚动高度
   container = document.body
 
+var img = new Image()
+img.src = '//littlelyon.com/img/stars.jpg'
+
 var scrollFunc = function () {
   container.style['background-position'] = '0 ' + (head * speed - 260) + 'px'
 
@@ -11,7 +14,7 @@ var scrollFunc = function () {
 }
 
 var loaded = function () {
-  container.style['background-image'] = 'url(../img/stars.jpg)'
+  container.style['background-image'] = 'url(//littlelyon.com/img/stars.jpg)'
   container.style['background-position'] = '0 ' + (head * speed - 260) + 'px'
 }
 
