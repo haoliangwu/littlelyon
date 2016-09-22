@@ -1,7 +1,11 @@
+function posTop () {
+  return typeof window.pageYOffset !== 'undefined' ? window.pageYOffset : document.documentElement.scrollTop ? document.documentElement.scrollTop : document.body.scrollTop ? document.body.scrollTop : 0
+}
+
 var base = 0, // 图片初始位置
-  speed = 0.1, // 速度
+  speed = 0.025, // 速度
   isFF = navigator.userAgent.indexOf('Firefox') != -1,
-  head = isFF ? document.documentElement.scrollTop : document.body.scrollTop, // 窗口y轴滚动高度
+  head = posTop(),
   container = document.body
 
 var img = new Image()
@@ -10,7 +14,7 @@ img.src = '//littlelyon.com/img/stars.jpg'
 var scrollFunc = function () {
   container.style['background-position'] = '0 ' + (head * speed - 260) + 'px'
 
-  head = isFF ? document.documentElement.scrollTop : document.body.scrollTop
+  head = posTop()
 }
 
 var loaded = function () {
@@ -18,7 +22,7 @@ var loaded = function () {
   container.style['background-position'] = '0 ' + (head * speed - 260) + 'px'
 }
 
-document.onscroll = scrollFunc
+window.onscroll = scrollFunc
 document.onreadystatechange = function () {
   if (document.readyState === 'complete') {
     loaded()

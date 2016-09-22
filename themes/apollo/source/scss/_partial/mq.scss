@@ -2,23 +2,24 @@ section.container {
     margin: 2em 10px;
 }
 
-@media screen and (min-width: 700px) {
-    .wrap {
-        background: rgba(255,255,255,0.75);
-        width: 700px;
-        margin: 0 auto;
-        padding: 10px;
-    }
-    header {
-        padding: 20px 100px;
-    }
+.wrap {
+    background: rgba(255, 255, 255, 0.75);
+    // ie6-8
+    filter:progid:DXImageTransform.Microsoft.gradient(startColorstr=#B2ffffff, endColorstr=#B2ffffff);
+    width: 800px;
+    margin: 0 auto;
+    padding: 50px;
+}
+
+header {
+    padding: 20px 100px;
 }
 
 @media screen and (max-width: 700px) {
     .wrap {
-        background: rgba(231,221,240,0.5);
+        background: rgba(231, 221, 240, 0.5);
         width: 100%;
-        padding: 10px;        
+        padding: 25px;
     }
     header {
         padding: 20px 0;
@@ -41,7 +42,11 @@ section.container {
         padding-left: 20px;
     }
     .post-content {
-        h2, h3, h4, h5, h6 {
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
             max-width: 300px;
             left: 15px;
         }
