@@ -22,7 +22,8 @@ var loaded = function () {
   container.style['background-position'] = '0 ' + (head * speed - 260) + 'px'
 }
 
-window.onscroll = scrollFunc
+if (!/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) window.onscroll = scrollFunc
+
 document.onreadystatechange = function () {
   if (document.readyState === 'complete') {
     loaded()
