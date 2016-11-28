@@ -1,7 +1,7 @@
 menu:
-  - name: Blog
-    path: /
-    icon: fa fa-home
+  - name: Pages
+    path: /pages/
+    icon: fa fa-bookmark
 
   - name: Archive
     path: /archives/
@@ -15,13 +15,14 @@ menu:
     path: http://littlelyon.com/resume/
     icon: fa fa-info
 
+
 favicon: /favicon.ico
 logo: /favicon.ico
 
 # Comment
 # e.g disqus: seansun
 disqus:
-duoshuo: littlelyon
+duoshuo: littlelyno
 
 # Analytics
 # google-analytics:
