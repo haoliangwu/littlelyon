@@ -3,7 +3,7 @@ title: codereview-20170207
 date: 2017-02-07 10:02:05
 tags: [学习]
 ---
-# 当元素间存在父子关系时，留意事件冒泡机制所引发的连锁反应
+### 当元素间存在父子关系时，留意事件冒泡机制所引发的连锁反应
 ```
                             <tr style="cursor: pointer;" ng-repeat="row in $ctrl.efficiencyTable.bodyData" ng-click="$ctrl.stepView(row)">
                                 ...
@@ -16,6 +16,7 @@ tags: [学习]
 
 ### 解决方法
 > angular中可以使用内置的 $event 对象来解决相应问题
+
 首先声明使用``$event``对象并传参
 ```
 <a ng-click="$ctrl.efficiencyView(row, $event)" class="hover-link">查看流程</a>
