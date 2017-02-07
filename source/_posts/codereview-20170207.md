@@ -21,12 +21,16 @@ tags: [学习]
 ```
 <a ng-click="$ctrl.efficiencyView(row, $event)" class="hover-link">查看流程</a>
 ```
-之后再``efficiencyView``方法中
+之后再``efficiencyView``方法中调用``stopPropagation``方法阻止事件冒泡
 ```
 efficiencyView (workflow, $event) {
     ...
     $event.stopPropagation()
   }
+```
+也可以对比``$event``对象中的``target``和``currentTarget``属性是否相同，因为这两个属性分别代表触发事件的dom节点与响应事件的当前节点
+```
+if($event.target === $event.currentTarget) ...
 ```
 
 ### 扩展
