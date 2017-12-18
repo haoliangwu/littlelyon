@@ -36,12 +36,11 @@ import R from 'ramda'
 export default function thunkWithDepsMiddleware () {
   const injector = angular.element(document.body).injector()
 
-  return store => next => action => {
+  return ({dispatch, getState}) => next => action => {
+    const isNotNil = R.complement(R.isNil)
     const isFSA = R.both(R.has('payload'), R.has('type'))
     const isLastItemIsFunction = R.compose(R.is(Function), R.last)
     const isAngularInlineArrayAnnotation = R.both(R.is(Array), isLastItemIsFunction)
-    const mapToDepInstance = R.map(dep => injector.get(dep))
-    const getDeps = R.compose(mapToDepInstance, R.init)
     let annotation
 
     // FSA 处理逻辑
@@ -50,10 +49,12 @@ export default function thunkWithDepsMiddleware () {
     else annotation = action
 
     if (isAngularInlineArrayAnnotation(annotation)) {
-      const locals = {dispatch: store.dispatch, getState: store.getState}
-      return injector.invoke(annotation, this, locals)
+      const locals = {dispatch: dispatch, getState: getState}
+      const payload = injector.invoke(annotation, this, locals)
+      if (isNotNil(payload)) return dispatch({...action, payload})
     } else if (R.is(Function, annotation)) {
-      return annotation(store.dispatch, store.getState)
+      const payload = annotation(dispatch, getState)
+      if (isNotNil(payload)) return dispatch({...action, payload})
     } else {
       return next(action)
     }
