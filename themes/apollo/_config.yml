@@ -11,9 +11,9 @@ menu:
     path: https://github.com/haoliangwu
     icon: fa fa-github-alt
 
-  - name: About
-    path: http://littlelyon.com/resume/
-    icon: fa fa-info
+  # - name: About
+  #   path: http://littlelyon.com/resume/
+  #   icon: fa fa-info
 
 
 favicon: /favicon.ico
