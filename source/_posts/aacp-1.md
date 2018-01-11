@@ -8,6 +8,11 @@ tags:
 date: 2018-01-10 17:21:19
 ---
 
+## 写在前头
+Angular到现在已经到5.x的版本了，对于MVVM框架我首先接触的是angularjs后来又转为react，之后换了工作因项目技术栈的原因又转换到之前的angularjs，在实际工作中实施了公司几个比较重要项目中前端的重构工作，这个过程逐步意识到，对于MVVM框架本身，在使用层面讲，掌握一些通用的模式是很有必要的，尤其现在已经很流行的组件化开发。这样我们在实际工作中就可以无缝（或者花很少的时间成本）转化到任何的MVVM框架，并把节省下来的时间去学习新的知识。
+
+最近一直在关注``Angular In Depth``的博客，偶尔看到这个系列的文章，觉的质量还挺高，所以抽空余时间翻译并分享给大家，并在每个文章后面加了一点自己的拙见，希望可以达到抛砖引玉的效果，如果观点有误，还望各位看官轻喷。
+
 ## 01 Build a Toggle Component
 
 > 原文: [Build a Toggle Component](https://blog.angularindepth.com/build-a-toggle-component-6e8f44889c2c)
