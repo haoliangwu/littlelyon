@@ -1,10 +1,9 @@
 ---
-title: 译
+title: 【译】 Understanding SOLID Principles - Dependency Inversion
 tags:
   - 翻译
   - js
   - 编程思想
-Understanding SOLID Principles: Dependency Inversion
 date: 2018-01-22 10:21:35
 ---
 
