@@ -1,7 +1,13 @@
 ---
-title: [译] Understanding SOLID Principles: Dependency Inversion
-tags: [翻译, js, 编程思想]
+title: 译
+tags:
+  - 翻译
+  - js
+  - 编程思想
+Understanding SOLID Principles: Dependency Inversion
+date: 2018-01-22 10:21:35
 ---
+
 
 # [Understanding SOLID Principles: Dependency Inversion](https://codeburst.io/understanding-solid-principles-dependency-injection-d570c15560ab)
 
