@@ -1,5 +1,5 @@
 ---
-title: 【译】 Understanding SOLID Principles - Dependency Inversion
+title: 【译】Understanding SOLID Principles - Dependency Inversion
 tags:
   - 翻译
   - js
