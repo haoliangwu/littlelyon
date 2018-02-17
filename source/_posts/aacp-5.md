@@ -48,7 +48,7 @@ export class ToggleDirective { ... }
 // myTemplateRefVar is the ToggleDirective
 ```
 
-### 组件与``exportAs``
+### 组件
 对于每一个``html``元素，只会有一个组件与之对应。当一个组件绑定于一个元素时，那么声明的模板引用变量将会被解析为当前元素上所绑定的组件，比如：
 ```
 // app.component.html
@@ -56,7 +56,7 @@ export class ToggleDirective { ... }
 // toggleOn is the ToggleOnComponent
 ```
 
-### HTML元素与``exportAs``
+### HTML元素
 如果没有组件与元素绑定，模板引用变量会指向当前这个``html``元素。
 ```
 // app.component.html
