@@ -1,7 +1,13 @@
 ---
 title: 高级 Angular 组件模式 (4)
-tags: [翻译, js, ngx, 设计模式]
+tags:
+  - 翻译
+  - js
+  - ngx
+  - 设计模式
+date: 2018-02-17 19:08:26
 ---
+
 
 ## 04 Avoid Namespace Clashes with Directives
 
