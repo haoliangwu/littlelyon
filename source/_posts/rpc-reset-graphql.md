@@ -133,8 +133,8 @@ GraphQL是近来比较热门的一个技术话题，相比REST和RPC，它汲取
 ### 写在最后
 提供一张表格来总览它们之间在不同指标下的表现：
 
-|           | 耦合性 | 约束性 | 复杂度 | 缓存   | 可发现性 | 版本控制 |
-| -------------- | ------ | ------ | ------ | ------ | -------- | -------- |
+|                | 耦合性 | 约束性 | 复杂度 | 缓存   | 可发现性 | 版本控制 |
+| -------------- | :----: | :----: | :----: | :----: | :------: | :------: |
 | RPC(Function)  | high   | medium | low    | custom | bad      | hard     |
 | REST(Resource) | low    | low    | low    | http   | good     | easy     |
 | GraphQL(Query) | medium | high   | medium | custom | good     | ???      |
