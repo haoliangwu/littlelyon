@@ -4,7 +4,6 @@ tags:
   - api
 categories: 
   - 原创
-  - 软件架构
 
 date: 2018-03-24 18:03:27
 ---

@@ -4,7 +4,6 @@ tags:
   - principle
 categories:   
   - 翻译
-  - 设计模式
 date: 2018-02-04 09:34:48
 ---
 

@@ -5,7 +5,6 @@ tags:
   - angular
 categories: 
   - 翻译
-  - 前端
 date: 2018-01-10 17:21:19
 ---
 
