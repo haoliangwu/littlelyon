@@ -1,10 +1,9 @@
 ---
 title: 高级 Angular 组件模式 (5)
 tags:
-  - 翻译
   - js
-  - ngx
-  - 设计模式
+  - angular
+categories: [翻译, 设计模式, 前端]
 date: 2018-02-17 19:07:14
 ---
 

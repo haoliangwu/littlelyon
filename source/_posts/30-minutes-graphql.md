@@ -1,8 +1,11 @@
 ---
 title: 30分钟理解GraphQL核心概念
 tags:
-  - GraphQL
-  - API
+  - graphql
+  - api
+categories: 
+  - 前端
+  - 后端
 date: 2018-04-02 12:13:29
 ---
 

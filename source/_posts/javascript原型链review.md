@@ -2,6 +2,8 @@
 title: javascript原型链-review
 tags:
   - js
+categories: [前端]
+
 date: 2018-02-08 17:28:48
 ---
 ## 写在前面

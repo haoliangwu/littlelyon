@@ -3,7 +3,7 @@ title: 尝鲜 workerize 源码
 tags:
   - js
   - web worker
-  - 源码
+categories: [前端, 源码分析]
 date: 2018-01-16 10:11:31
 ---
 

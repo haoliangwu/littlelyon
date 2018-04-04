@@ -1,9 +1,8 @@
 ---
 title: 【译】Understanding SOLID Principles - Open Closed Principle
 tags:
-  - 翻译
-  - js
-  - 编程思想
+  - principle
+categories: [设计模式, 前端, 后端, 翻译, 编程思想]
 date: 2018-02-04 09:34:48
 ---
 

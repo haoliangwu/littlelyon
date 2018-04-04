@@ -2,6 +2,7 @@
 title: interview record 20160822
 date: 2016-08-22 17:12:41
 tags: [interview, html, css]
+categories: [心情]
 ---
 
 ## 面试公司 

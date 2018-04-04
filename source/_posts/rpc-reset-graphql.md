@@ -2,7 +2,7 @@
 title: RPC vs REST vs GraphQL
 tags:
   - api
-  - 接口设计
+categories: [设计模式, 前端, 后端]
 date: 2018-03-24 18:03:27
 ---
 
