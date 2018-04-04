@@ -2,8 +2,6 @@
 title: codereview-s8
 date: 2017-02-07 10:02:05
 tags: [js]
-categories: 
-    - 前端
 
 ---
 ## 当元素间存在父子关系时，留意事件冒泡机制所引发的连锁反应

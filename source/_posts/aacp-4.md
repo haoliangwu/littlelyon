@@ -5,7 +5,6 @@ tags:
   - angular
 categories: 
   - 翻译
-  - 设计模式
   - 前端
 date: 2018-02-17 19:08:26
 ---

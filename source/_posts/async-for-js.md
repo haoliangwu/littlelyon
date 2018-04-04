@@ -4,6 +4,7 @@ date: 2016-11-28 09:16:51
 tags: [js]
 categories: 
   - 翻译
+  - 前端
 ---
 介绍关于js开发中所涉及的主流异步编程解决方案
 > repo: [async-for-js](https://github.com/haoliangwu/todoMVCs/tree/master/async-for-js)

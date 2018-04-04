@@ -3,7 +3,7 @@ title: vscode typings配置
 date: 2016-09-21 15:33:31
 tags: [js]
 categories: 
-  - 前端
+  - 原创
 ---
 vscode发布至今已经到1.5.2了，我是从1.1开始用的，经历了几个改动比较大的版本。总体给我的感觉还是很好的，作为一个rich editor，能够提供像webstorm之类ide的代码提示功能非常赞，但是对于这块的配置还真没折腾过，只知道它的提示是基于ts的compiler提供的，虽然是ts提供的，但是js作为ts的编译对象，同样可以享受这个compiler提供的便利。
 

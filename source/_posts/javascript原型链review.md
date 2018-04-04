@@ -3,6 +3,7 @@ title: javascript原型链-review
 tags:
   - js
 categories: 
+  - 原创
   - 前端
 
 date: 2018-02-08 17:28:48

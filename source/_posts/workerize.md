@@ -4,7 +4,6 @@ tags:
   - js
   - web worker
 categories: 
-  - 前端
   - 源码分析
 date: 2018-01-16 10:11:31
 ---

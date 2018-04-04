@@ -3,11 +3,8 @@ title: 【译】Understanding SOLID Principles - Dependency Inversion
 tags:
   - principle
 categories:   
-  - 设计模式
-  - 前端
-  - 后端
   - 翻译
-  - 编程思想
+  - 设计模式
 date: 2018-01-22 10:21:35
 ---
 
