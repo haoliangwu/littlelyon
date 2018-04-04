@@ -36,9 +36,6 @@ date: 2018-01-10 22:02:45
 
 这些子组件都会监听同一个``<toggle>``组件的开关状态。
 
-{% iframe https://stackblitz.com/edit/adv-ng-patterns-03a-compound-comp-inject-parent
-800 600  %}
-
 ## 译者注
 依赖注入是Angular中提供的很强大的功能，在``angularjs``中就表现出色并作为卖点。
 

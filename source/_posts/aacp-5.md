@@ -66,8 +66,8 @@ export class ToggleDirective { ... }
 
 ### 成果
 Note: 在``stackblitz``中，我通过打印模板引用变量所指向的类的名字（constructor.name）来演示它所代表的引用。
-{% iframe https://stackblitz.com/edit/adv-ng-patterns-05-template-ref-variables
-800 600  %}
+
+https://stackblitz.com/edit/adv-ng-patterns-05-template-ref-variables
 
 ## 译者注
 这篇文章作者关于模板引用变量，仅仅介绍了关于如何声明和在视图模板中如何使用，我在这里再补充一些，如何在组件或者指令类的内部使用。

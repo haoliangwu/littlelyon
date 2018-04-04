@@ -120,8 +120,7 @@ this.toggle = this.withToggle || this.toggleDirective;
 
 当前的``this``指定``withToggle``本身，所以拥有它引用的子组件都可以访问它。
 
-{% iframe https://stackblitz.com/edit/adv-ng-patterns-03b-enhance-with-directives
-800 600  %}
+https://stackblitz.com/edit/adv-ng-patterns-03b-enhance-with-directives
 
 ## 译者注
 在这一节中，主要进行了以下几方面的改进：

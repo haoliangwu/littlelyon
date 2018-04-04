@@ -63,12 +63,22 @@ pagination_dir: page
 # Extensions
 ## Plugins: https://hexo.io/plugins/
 ## Themes: https://hexo.io/themes/
-theme: apollo
+theme: Lap
 
-# Deployment
+search:
+  path: search.xml
+  field: post
+
+offline:
+  maximumFileSizeToCacheInBytes: 5242880
+  staticFileGlobs:
+  - public/**/*.{js,html,css,png,jpg,gif,svg,eot,ttf,woff,woff2}
+  stripPrefix: public
+  verbose: true
+
+  # Deployment
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
   type: git
   repository: git@github.com:haoliangwu/haoliangwu.github.io.git
   branch: master
-

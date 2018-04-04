@@ -34,9 +34,6 @@ date: 2018-01-10 21:05:59
 
 * ``@ViewChild``或者``@ViewChildren``装饰器是用来获取在组件内部模板中使用的单个或者多个组件的。比如``template: 'This is the view'``或者``templateUrl: './my.component.html'``
 
-{% iframe https://stackblitz.com/edit/adv-ng-patterns-02-compound-components
-800 600  %}
-
 ## 译者注
 这里组件架构方式是标准的``Smart Component（智能组件）``和``Dump Component（木偶组件）``组件架构方式。
 

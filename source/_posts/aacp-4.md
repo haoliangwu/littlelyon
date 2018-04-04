@@ -46,8 +46,7 @@ Note: 当使用``Output``属性重写原生``DOM``元素的事件和使用``Inpu
 但是这种解决方案的前提时，你至少能够更改存在命名冲突中的一个或多个指令的源码。如果在两个第三方库中存在命名冲突，这种情况是最棘手的，我们不在这里讨论它们。
 
 ## 成果
-{% iframe https://stackblitz.com/edit/adv-ng-patterns-04-namespace-clashes
-800 600  %}
+https://stackblitz.com/edit/adv-ng-patterns-04-namespace-clashes
 
 ## 译者注
 原文中关于最后一段提出的关于在多个第三方库中存在的命名冲突的场景，作者提供做出具体的解决方案，我在这里简单分享一下自己对于这种情况的解决方案：

@@ -25,9 +25,6 @@ Angular到现在已经到5.x的版本了，对于MVVM框架我首先接触的是
 
 在我们开始下一个话题[02 Write Compound Components](http://littlelyon.com/2018/01/10/aacp-2/)之前，可以在[在线代码仓库](https://stackblitz.com/edit/adv-ng-patterns-01-build-toggle-component)看看这个组件的实现以及演示。
 
-{% iframe https://stackblitz.com/edit/adv-ng-patterns-01-build-toggle-component
-800 600  %}
-
 ## 译者注
 ``toggle``组件的实现是一个很典型的利用单向数据流作为数据源的简单组件：
 * ``on``是单向数据源，同时代表组件内部的开关状态
