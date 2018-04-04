@@ -2,7 +2,8 @@
 title: 从ng1看ng2 关于NgModule的简易归纳
 date: 2017-07-21 15:16:35
 tags: [js]
-categories: [前端]
+categories: 
+  - 前端
 
 ---
 ## 写在前面

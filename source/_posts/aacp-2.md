@@ -3,7 +3,10 @@ title: 高级 Angular 组件模式 (2)
 tags:
   - js
   - angular
-categories: [翻译, 设计模式, 前端]
+categories: 
+  - 翻译
+  - 设计模式
+  - 前端
 date: 2018-01-10 21:05:59
 ---
 

@@ -2,7 +2,8 @@
 title: 在 redux 中集成  angular di 机制
 date: 2017-05-31 09:29:57
 tags: [js, angular, redux]
-categories: [前端]
+categories:  
+  - 前端
 ---
 最近一直在折腾``redux``相关的东西，算然说官方鼓励的使用方式是将redux和react一起使用，但并不影响我们在其他的mvvm框架中使用它。
 

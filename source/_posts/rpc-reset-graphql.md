@@ -2,7 +2,10 @@
 title: RPC vs REST vs GraphQL
 tags:
   - api
-categories: [设计模式, 前端, 后端]
+categories: 
+  - 设计模式
+  - 前端
+  - 后端
 date: 2018-03-24 18:03:27
 ---
 

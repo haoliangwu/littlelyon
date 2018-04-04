@@ -2,7 +2,12 @@
 title: 【译】Understanding SOLID Principles - Single Responsibility
 tags:
   - principle
-categories: [设计模式, 前端, 后端, 翻译, 编程思想]
+categories:   
+  - 设计模式
+  - 前端
+  - 后端
+  - 翻译
+  - 编程思想
 date: 2018-02-02 15:28:46
 ---
 
