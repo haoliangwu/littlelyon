@@ -2,6 +2,7 @@
 title: RPC vs REST vs GraphQL
 tags:
   - api
+  - graphql
 categories: 
   - 原创
 
