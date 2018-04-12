@@ -1,0 +1,23 @@
+<footer class="site-footer">
+  <p class="site-info">
+    Proudly powered by <a href="https://hexo.io/" target="_blank">Hexo</a> and
+    Theme by <a href="https://github.com/BosenY/Lap" target="_blank">Lap</a>
+    <br/><span id="busuanzi_container_site_uv"> 
+  本站访客数<span id="busuanzi_value_site_uv"></span>人次
+</span>
+    </br>
+    <% if (config.author){ %>
+      <% if (config.startYear){ %>
+        &copy;<%= config.startYear %> - <%= new Date().getFullYear() %> <%= config.author %>
+      <% } else { %>
+        &copy; <%= new Date().getFullYear() %> <%= config.author %>
+      <% } %>
+    <% } else { %>
+      <% if (config.startYear){ %>
+        &copy;<%= config.startYear %> - <%= new Date().getFullYear() %> <%= config.title %>
+      <% } else { %>
+        &copy; <%= new Date().getFullYear() %> <%= config.title %>
+      <% } %>
+    <% } %>
+  </p>
+</footer>

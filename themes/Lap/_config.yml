@@ -1,0 +1,40 @@
+menu:
+  Home: /
+  Archives: /archives
+
+# Social links
+social:
+  GitHub:
+    key: github
+    link: https://github.com/haoliangwu
+  # Twitter: https://twitter.com/your-user-name
+  知乎:
+    key: zhihu
+    link: https://www.zhihu.com/people/wu-hao-liang-81/activities
+  SegmentFault:
+    key: sf
+    link: https://segmentfault.com/u/littlelyon
+  # 等等。。。
+
+#Gitment (Recommended Use) see https://imsun.net/posts/gitment-introduction/
+Gitment: true
+Gitment_client_id: e9cb0c90dcba4035e2d9
+Gitment_client_secret: 038be595d0dc58ec53b640f87bc5c9ebb94ec399
+Gitment_Github_id: haoliangwu
+repo: littlelyon.me
+
+toc:
+  enable: true
+
+# anchorjs
+anchorjs: true
+
+# sidebar search
+search: true
+
+# sidebar categories
+categories: true
+# sidebar links
+links: true
+
+
