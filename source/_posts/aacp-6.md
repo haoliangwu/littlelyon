@@ -13,7 +13,7 @@ date: 2018-05-30 11:06:00
 
 > 原文: [Use <ng-template>](https://blog.angularindepth.com/use-ng-template-c72852c37fba)
 
-``[Render Props](https://reactjs.org/docs/render-props.html)``最近在``React``社区中引起了轰动，但是与之类似的模式在Angular中似乎并没有得到太多关注。我在之前写的文章提及过，``TemplateRefs``就是``Angular``中的``Render Props``，同时我会在这篇文章中列举一个简单易用的例子。
+[``Render Props``](https://reactjs.org/docs/render-props.html)最近在``React``社区中引起了轰动，但是与之类似的模式在Angular中似乎并没有得到太多关注。我在之前写的文章提及过，``TemplateRefs``就是``Angular``中的``Render Props``，同时我会在这篇文章中列举一个简单易用的例子。
 
 > Note: ``TemplateRef``是一个类名而``<ng-template>``是一个``html``标签，它们本质上是相同的。不过你可能会在项目中更频繁地使用``<ng-template>``，但是在网上你可以很容易的搜索到关于``TemplateRef``的知识，因为``<ng-template>``会给你提供很多``html5``中的``<template>``标签的信息。
 
