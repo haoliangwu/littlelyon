@@ -18,8 +18,8 @@ social:
 
 #Gitment (Recommended Use) see https://imsun.net/posts/gitment-introduction/
 Gitment: true
-Gitment_client_id: e9cb0c90dcba4035e2d9
-Gitment_client_secret: 038be595d0dc58ec53b640f87bc5c9ebb94ec399
+Gitment_client_id: 72fa19fd9922fc15b9b8
+Gitment_client_secret: a8fe2d519026c54b3f30dc10721e9022ea9fc033
 Gitment_Github_id: haoliangwu
 repo: littlelyon.me
 
