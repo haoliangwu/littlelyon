@@ -14,7 +14,7 @@ dart 是一门面向对象的语言，既然是面向对象就不会缺少类（
 
 > Note: 示例代码中包含一些 dart 的基本语法，建议阅读之前先进行了解。如果有 typescript 或者 java 使用经验的话，应该会很熟悉。
 
-### 声明、实例化及访问属性
+## 声明、实例化及访问属性
 这一部分是最基本的内容，和大部分编程语言的语法差不多。比如想要声明一个 Point 类：
 ```
 class Point {
@@ -35,11 +35,11 @@ class Point {
 }
 ```
 
-### 实例化：
+## 实例化：
 ```
 Point p = Point(1, 1); // 或者 new Point(1, 1)
 ```
-### 访问属性：
+## 访问属性：
 ```
 print('${p.x} ${p.y}'); // 类的方法同理
 ```
@@ -47,11 +47,11 @@ print('${p.x} ${p.y}'); // 类的方法同理
 ```
 print('${p?.x}');
 ```
-### 属性可见范围
+## 属性可见范围
 dart 中不存在类似 java 和 typescript 中的 private、protected、public 修饰符，它使用约定来对类属性的可见范围进行控制。约定如下：
 如果一个标识符以下划线（_）开头，则它为一个私有标识符。
 
-### 构造函数
+## 构造函数
 dart 类的构造函数存在两种形式，一种为 ClassName() ，另一种是 ClassName.ConstructorName() ，举例说明：
 ```
 var p1 = new Point(2, 2);
@@ -99,13 +99,13 @@ class Employee extends Person {
   Employee(Map data) : super(data);
 }
 ```
-### 方法
+## 方法
 类的方法可以划分为以下几类：
 * [实例方法](https://www.dartlang.org/guides/language/language-tour#instance-methods)
 * [getter/setter](https://www.dartlang.org/guides/language/language-tour#getters-and-setters)
 * [抽象方法](https://www.dartlang.org/guides/language/language-tour#abstract-methods)（必须在抽象类中）
 
-### 接口
+## 接口
 不像 java，dart 中每一个类都会隐式的声明一个包含当前类及它所实现所有接口的成员属性的接口。现在我们想实现一个可以 run 和 jump 的 Person 类，代码如下：
 ```
 class Run {
@@ -126,10 +126,10 @@ class Person implements Run, Jump {
   }
 }
 ```
-### 继承
+## 继承
 和其他面向对象编程语言中的继承差不多，可以参考[这里](https://www.dartlang.org/guides/language/language-tour#extending-a-class)。
 
-### 枚举
+## 枚举
 dart 中也可以像 typescript 一样，使用 enum 声明枚举对象，如下：
 ```
 enum Color { red, green, blue }
@@ -138,7 +138,7 @@ enum Color { red, green, blue }
 无法继承或者使用 mixin，同时也无法被当做接口
 无法显示实例化
 
-### mixins
+## mixins
 熟悉 python 的话会很熟悉这个特性，dart 中使用 with 关键字来在一个类中混入 mixins，比如：
 ```
 class Musician extends Performer with Musical {
@@ -157,10 +157,10 @@ abstract class Musical {
   }
 }
 ```
-### 静态属性及方法
+## 静态属性及方法
 和其他编程语言类似，只需要在属性或者方法前加 static 关键字即可。
 
-### 抽象类
+## 抽象类
 和其他编程语言类似，通过 abstract 关键字声明，比如：
 ```
 abstract class AbstractContainer {
@@ -169,7 +169,7 @@ abstract class AbstractContainer {
 ```
 抽象类无法实例化，除非它被实现。
 
-### Callable 
+## Callable 
 类可以提供一个 call() 方法以使当前类成为 Callable class，提供该方法以后类实例可以被当做函数来调用，比如：
 ```
 class Point {
