@@ -118,3 +118,7 @@ Vary 虽然可以防止缓存错乱，但并不代表可以滥用，盲目的使
 [8]: https://www.fastly.com/blog/getting-most-out-vary-fastly
 [9]: https://wiki.whatwg.org/wiki/Why_not_conneg
 [10]: https://zhuanlan.zhihu.com/p/38972475
+
+## 广告
+我的博客即将同步至腾讯云+社区，邀请大家一同入驻：https://cloud.tencent.com/developer/support-plan?invite_code=ynlt15k3lmbx
+
