@@ -5,7 +5,9 @@ tags:
   - vue
 categories:
   - 原创
+date: 2018-11-20 15:05:16
 ---
+
 ## 08 使用 Control Props
 
 ### 目标

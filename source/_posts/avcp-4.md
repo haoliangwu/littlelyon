@@ -5,7 +5,9 @@ tags:
   - vue
 categories:
   - 原创
+date: 2018-11-20 15:04:55
 ---
+
 ## 04 使用 slot 替换 mixin
 
 ### 目标

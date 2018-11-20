@@ -5,7 +5,9 @@ tags:
   - vue
 categories:
   - 原创
+date: 2018-11-20 15:05:11
 ---
+
 ## 06 通过 Directive 增强组件内容
 
 ### 目标

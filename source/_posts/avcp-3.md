@@ -5,7 +5,9 @@ tags:
   - vue
 categories:
   - 原创
+date: 2018-11-20 15:04:52
 ---
+
 ## 03 使用 mixin 来增强 Vue 组件
 
 ### 目标
