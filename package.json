@@ -6,7 +6,7 @@
     "build": "hexo g"
   },
   "hexo": {
-    "version": "3.7.0"
+    "version": "3.9.0"
   },
   "dependencies": {
     "hexo": "^3.2.0",

@@ -8,12 +8,12 @@ social:
     key: github
     link: https://github.com/haoliangwu
   # Twitter: https://twitter.com/your-user-name
-  知乎:
-    key: zhihu
-    link: https://www.zhihu.com/people/wu-hao-liang-81/activities
   SegmentFault:
     key: sf
     link: https://segmentfault.com/u/littlelyon
+  辽ICP备18006375号-1:
+    key: beian
+    link: http://beian.miit.gov.cn
   # 等等。。。
 
 #Gitment (Recommended Use) see https://imsun.net/posts/gitment-introduction/
