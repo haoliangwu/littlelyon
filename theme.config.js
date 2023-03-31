@@ -2,12 +2,7 @@ const YEAR = new Date().getFullYear()
 
 export default {
   footer: (
-    <small style={{ display: 'block', marginTop: '8rem' }}>
-      <time>{YEAR}</time> © Your Name.
-      <a href="/feed.xml">辽ICP备18006375号-1</a>
-      <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank">
-        RSS
-      </a>
+    <>
       <style jsx>{`
         a {
           float: right;
@@ -20,6 +15,15 @@ export default {
           }
         }
       `}</style>
-    </small>
+      <small style={{ display: 'block', marginTop: '8rem' }}>
+        <time>{YEAR}</time> © Lyon Wu
+        <a href="/feed.xml">RSS</a>
+      </small>
+      <small style={{ display: 'block', marginTop: '0.25rem' }}>
+        <a href="https://beian.miit.gov.cn/#/Integrated/index" target="_blank">
+          辽ICP备18006375号-1
+        </a>
+      </small>
+    </>
   )
 }
