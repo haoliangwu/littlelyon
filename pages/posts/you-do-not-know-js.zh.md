@@ -1,7 +1,7 @@
 ---
 title: You don't know React
-date: 2023/03/31
-description: React 团队更新了新的文档，其中可能包含你之前忽略的一些细节。
+date: 2023/03/21
+description: React 更新了新的官方文档，其中可能包含你之前一直忽略的一些细节。
 tag: react
 author: You
 ---
