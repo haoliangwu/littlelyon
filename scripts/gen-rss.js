@@ -5,9 +5,13 @@ const matter = require('gray-matter')
 
 async function generate() {
   const feed = new RSS({
-    title: 'Your Name',
-    site_url: 'https://yoursite.com',
-    feed_url: 'https://yoursite.com/feed.xml'
+    title: 'Lyon Wu | RSS Feed',
+    description: 'Don\'t judge a book by its cover',
+    site_url: 'https://littlelyon.com',
+    feed_url: 'https://littlelyon.com/feed.xml',
+    image_url: 'https://littlelyon.com/logo.png',
+    pubDate: new Date(),
+    copyright: `All rights reserved ${new Date().getFullYear()}, Lyon Wu`
   })
 
   const posts = await fs.readdir(path.join(__dirname, '..', 'pages', 'posts'))
@@ -34,7 +38,7 @@ async function generate() {
 
   allPosts.sort((a, b) => new Date(b.date) - new Date(a.date))
   allPosts.forEach((post) => {
-      feed.item(post)
+    feed.item(post)
   })
   await fs.writeFile('./public/feed.xml', feed.xml({ indent: true }))
 }
