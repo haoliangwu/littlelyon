@@ -1,6 +1,11 @@
 const YEAR = new Date().getFullYear()
 
 export default {
+  i18n: [
+    { locale: 'en', text: 'English' },
+    { locale: 'zh', text: '中文' },
+    { locale: 'ja', text: '日本語' },
+  ],
   footer: (
     <>
       <style jsx>{`
