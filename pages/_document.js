@@ -4,7 +4,7 @@ export default function Document() {
   const meta = {
     title: 'Lyon Wu | RSS Feed',
     description: 'Don\'t judge a book by its cover',
-    image: 'https://littlelyon.com/logo.png'
+    image: 'https://www.littlelyon.com/logo.png'
   }
 
   return (

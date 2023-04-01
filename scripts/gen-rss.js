@@ -7,9 +7,9 @@ async function generate() {
   const feed = new RSS({
     title: 'Lyon Wu | RSS Feed',
     description: 'Don\'t judge a book by its cover',
-    site_url: 'https://littlelyon.com',
-    feed_url: 'https://littlelyon.com/feed.xml',
-    image_url: 'https://littlelyon.com/logo.png',
+    site_url: 'https://www.littlelyon.com',
+    feed_url: 'https://www.littlelyon.com/feed.xml',
+    image_url: 'https://www.littlelyon.com/logo.png',
     pubDate: new Date(),
     copyright: `All rights reserved ${new Date().getFullYear()}, Lyon Wu`
   })
