@@ -63,3 +63,12 @@ img.next-image {
 .nav-line .nav-link {
   color: #69778c;
 }
+
+/* overriding */
+.md\:prose code::before {
+  content: " ";
+}
+
+.md\:prose code::after {
+  content: " ";
+}
