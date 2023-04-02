@@ -1,5 +1,5 @@
 ---
-title: how to reset style in css
+title: How to reset style in CSS
 date: 2023/03/24
 description: 对比 initial, unset, revert 以及 revert-layer 在重置样式时的异同。
 tag: css
@@ -29,7 +29,7 @@ ul {
   list-style-type: decimal;
 }
 ```
-[padding 属性的 initial value 参照](https://developer.mozilla.org/en-US/docs/Web/CSS/padding#formal_definition)<br />[list-style-type 属性的 initial value 参照](https://developer.mozilla.org/en-US/docs/Web/CSS/list-style-type#formal_definition)<br />Chrome 111 中，针对`ul`元素的样式定义如下：<br />![the-default-style-of-ul-in-chrome](/images/how-to-reset-style-in-css.zh/img1.png)<br />这里使用了`paddng-inline-start`这个逻辑属性，其效果等价于 `padding: 0 0 0 40px`。
+[padding 属性的 initial value 参照](https://developer.mozilla.org/en-US/docs/Web/CSS/padding#formal_definition)<br />[list-style-type 属性的 initial value 参照](https://developer.mozilla.org/en-US/docs/Web/CSS/list-style-type#formal_definition)<br />Chrome 111 中，针对`ul`元素的样式定义如下：<br />![the-default-style-of-ul-in-chrome](/images/how-to-reset-style-in-css/img1.png)<br />这里使用了`paddng-inline-start`这个逻辑属性，其效果等价于 `padding: 0 0 0 40px`。
 ### 实用 snippets
 ```css
 div {
