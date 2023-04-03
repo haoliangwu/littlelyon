@@ -31,7 +31,7 @@ var promise = import("module-name");
 // 对于现代浏览器，会无视 nomodule 的 script 标签
 <script nomodule src="fallback.js"></script>
 ```
-import maps
+`import maps`
 > [https://github.com/WICG/import-maps#the-basic-idea](https://github.com/WICG/import-maps#the-basic-idea)
 > 
 
