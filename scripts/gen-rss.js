@@ -5,8 +5,8 @@ const matter = require('gray-matter')
 
 async function generate() {
   const feed = new RSS({
-    title: 'Lyon Wu | RSS Feed',
-    description: 'Don\'t judge a book by its cover',
+    title: 'Lyon Wu',
+    description: 'Forget the label.',
     site_url: 'https://www.littlelyon.com',
     feed_url: 'https://www.littlelyon.com/feed.xml',
     image_url: 'https://www.littlelyon.com/logo.png',

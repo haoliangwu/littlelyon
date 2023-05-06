@@ -1,8 +1,6 @@
-const withNextra = require('nextra')('nextra-theme-blog', './theme.config.js')
-
-module.exports = withNextra({
-  i18n: {
-    locales: ['zh', 'en', 'ja'],
-    defaultLocale: 'zh'
-  }
-})
+const withNextra = require('nextra')({
+    theme: 'nextra-theme-blog',
+    themeConfig: './theme.config.jsx',
+  })
+   
+  module.exports = withNextra()
