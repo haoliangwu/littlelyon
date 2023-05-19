@@ -1,7 +1,7 @@
 ---
 title: AWS IAM in Action
 date: 2023/05/19
-description: 介绍 AWS IAM 服务所包含的核心概念与最佳实践。
+description: 介绍 AWS IAM 服务所包含的核心概念与最佳实践，IAM 也是 AWS 最核心的服务之一，了解和掌握 IAM 有助于快速学习和掌握与 IAM 配合使用的 AWS 服务。
 tag: aws
 author: You
 ---
