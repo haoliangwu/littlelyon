@@ -5,6 +5,7 @@ description: 介绍 AWS IAM 服务所包含的核心概念与最佳实践，IAM 
 tag: aws
 author: You
 ---
+import ImagePreviewer from '../components/ImagePreviewer'
 
 ## IAM 是什么
 AWS Identity and Access Management (IAM) 是一种 Web 服务，可以帮助您安全地控制对 AWS 资源的访问。借助 IAM，您可以集中管理控制用户可访问哪些 AWS 资源的权限。可以使用 IAM 来控制谁通过了身份验证（准许登录）并获得授权（拥有权限）来使用资源。
@@ -63,7 +64,10 @@ AWS 资源代表 AWS 服务中所托管或创建的实体，比如：
    - 标识符的类型有时候是 ID，有时候可能是一个路径（Path），比如 S3 或 VPC 服务，资源标识符需要使用`/`来表示层级关系
    - 标识符中可以使用`*`通配符来匹配资源集合
 ### 从哪里查看 ARN
-通常直接在 AWS 控制台即可查看，比如查看 IAM 控制台中 IAM 用户的 ARN：<br />![the arn of AWS IAM console](/images/aws-iam-in-action/img1.png)
+通常直接在 AWS 控制台即可查看，比如查看 IAM 控制台中 IAM 用户的 ARN：<br />
+
+<ImagePreviewer src="/images/aws-iam-in-action/img1.png" alt="the arn of AWS IAM console"/>
+
 ## 动作（Action）
 动作代表 AWS 资源可以执行的操作，通常和业务逻辑一一对应，比如对于 IAM 服务来说，关于用户最常见的 4 个动作如下：
 
