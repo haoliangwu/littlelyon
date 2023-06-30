@@ -58,13 +58,45 @@ Endpoint 可以翻译为端点，在 VPC 场景下，有时候也被称作 AWS P
 ### Security Group
 安全组在逻辑上可以理解为针对 ENI 设备而实现的**分布式**、**无状态、基于 4 层网络模型**的防火墙。<br />同时，安全组是根据 VPC 隔离的，这意味着绑定安全组的 ENI 设备需要处于同一个 VPC 内。<br />安全组在流量控制方向上是**可进可出（Inbount and Outbound）**。
 ### Network ACLs
-Network ACLs 是基于 VPC **子网级别**的防火墙，它也是**无状态**和**基于 4 层网络模型**的**，**除此之外，和安全组没有任何区别。<br />Network ACLs 在流量控制方向上是**可进可出（Inbound and Outbound）**。
+Network ACLs 是基于 VPC **子网级别**的防火墙，它也是**无状态**和**基于 4 层网络模型**的，除此之外，和安全组没有任何区别。<br />Network ACLs 在流量控制方向上是**可进可出（Inbound and Outbound）**。
 ### Network Firewall
 Network Firewall 是 AWS 提供的配套最为完整的防火墙解决方案，是基于 **VPC 级别**的，它可同时支持**有状态**和**无状态**的过滤规则，所支持**任何层级的网络模型**。<br />Network Firewall 在流量控制方向上是**可进可出（Inbound and Outbound）**。
 ### Web ACLs
-Web ACLs 和 VPC 无关，它本身是 AWS 服务的一种，通常与 AWS Load Balancer 和 AWS CloudFront 配合使用，它有时也被称作 AWS WAF。它是一种 Web 应用程序防火墙，可让您监控转发到受保护 Web 应用程序资源的 HTTP(S) 请求，过滤规则是基于** 7 层网络模型**的。<br />Web ACLS 在流量控制方向上是**只进不出（Inbound Only）**。
+Web ACLs 和 VPC 无关，它本身是 AWS 服务的一种，通常与 AWS Load Balancer 和 AWS CloudFront 配合使用，它有时也被称作 AWS WAF。它是一种 Web 应用程序防火墙，可让您监控转发到受保护 Web 应用程序资源的 HTTP(S) 请求，过滤规则是基于**7 层网络模型**的。<br />Web ACLS 在流量控制方向上是**只进不出（Inbound Only）**。
 ### DNS Firewall
 DNS Firewall 与 AWS Route 53 相关的 DNS 防火墙解决方案。使用 DNS 防火墙，可以在与 VPC 关联的规则组中定义域名过滤规则，可以指定要允许或阻止的域名列表，并且可以自定义对阻止的 DNS 的查询响应。<br />DNS Firewall 在流量控制方向上是**可进可出（Inbound and Outbound）**。
+
+## 最佳实践
+这里分享一些关于之前构建 dev 环境时，调查 VPC 相关问题的实际案例的思路和方向（仅列举一部分可能性）。
+ECS Fargate 集群访问 ECR 公网端点超时
+* Fargate 集群启动的 task 所在的子网为私有子网，且未正确配置 NAT 网关或 Intenet 网关
+* NAT 网关未绑定公网 IP
+* NAT 网关所在子网的安全组 Inbound 规则未正确配置
+* Fargate 集群启动的 task 所在的子网的安全组 Outbound 规则未正确配置
+
+ECS Fargate 集群访问 ECR 私网端点 DNS 解析失败
+* Fargate 集群启动的 task 所在的子网中不存在访问 ECR 服务的 endpoint
+* 指向 ECR 服务 endpoint 的路由表规则未正确配置
+* Fargate 集群启动的 task 所在的子网的安全组 Outbound 规则未正确配置
+
+ECS Fargate 集群启动正常，ALB health check 却显示失败
+* ALB 所在的子网的安全组 Outbound 规则未正确配置
+* Fargate 集群启动的 task 所在的子网的安全组 Inbound 规则未正确配置
+* ALB health check listener 未正确配置，如路由、端口
+
+Bridge EC2 在启用适配无状态规则的 Network Firewall 后，ssh tunnel 存在偶然性断开问题
+* 只添加了单条 InBound 或 OutBound 无状态规则
+* EC2 Bridge 的 sshd 配置设置了最大会话时长
+
+配置 NAT 网关后，VPC 内的服务无法访问公网
+* NAT 网关未绑定公网 IP
+* 路由表未正确配置
+
+## 课后作业
+这里留两个课后作业，以达到抛砖引玉的目的：
+* 假如客户需要以 VPN 的方式连接运行在 VPC 私有子网内的服务，请问网络配置的大概思路是怎样的？
+* 如果两个不同 VPC 内的私有子网需要进行通信，请问完成通信所涉及的 VPC 概念会有哪些？
+
 ## Reference
 
 - [CIDR Calculator](https://www.ipaddressguide.com/cidr)
