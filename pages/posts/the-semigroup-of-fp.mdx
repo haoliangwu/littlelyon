@@ -1,0 +1,189 @@
+---
+title: The Semigroup of FP
+date: 2023/06/26
+description: Semigroup 是一个代数结构，它由一个集合和一个二元运算组成，满足结合律。在函数式编程中，Semigroup 用于描述可组合的操作，可以通过合并操作创建更复杂的结构。例如，数字的加法和字符串的拼接都是 Semigroup。
+tag: fp
+author: You
+---
+
+import ImagePreviewer from "../components/ImagePreviewer";
+
+## 什么是 Semigroup
+
+在函数式编程中，Semigroup 是用来抽象“可组合“逻辑的 Type Class，它的定义如下：
+
+```typescript
+interface Semigroup<A> {
+  readonly concat: (x: A, y: A) => A;
+}
+```
+
+一个 Semigroup 实例具有一个 concat 方法，该方法将两个相同类型的值组合成一个值，且这个值具备相同的类型（如上面的`A`），同时，Semigroup 应满足结合律（associative），即 `(a.combine(b)).combine(c)`应该等于`a.combine(b.combine(c))`。<br />Semigroup 可以用于许多不同的数据类型，例如数字、字符串、列表、树等等。通过使用 Semigroup 接口，我们可以将这些数据类型组合在一起，从而创建更复杂的数据结构，举个例子：
+
+```typescript
+const semigroupSum: Semigroup<number> = {
+  concat: (x, y) => x + y,
+};
+
+semigroupSum.concat(semigroupSum.concat(1, 2), 3);
+// (1 + 2) + 3 = 6
+semigroupSum.concat(1, semigroupSum.concat(2, 3));
+// 1 + (2 + 3) = 6
+
+const semigroupString: Semigroup<string> = {
+  concat: (x, y) => x + y,
+};
+
+semigroupString.concat(semigroupString.concat("a", "b"), "c");
+// ('a' + 'b') + 'c' = 'abc'
+semigroupString.concat("a", semigroupString.concat("b", "c"));
+// 'a' + ('b' + 'c') = 'abc'
+```
+
+### Magma
+
+实际上，Semigroup 的概念衍生自 Magma，关于 Magma 的 Type Class 定义如下：
+
+```typescript
+interface Magma<A> {
+  readonly concat: (x: A, y: A) => A;
+}
+```
+
+表面上看，这个定义和 Semigroup 完全一致，没错，它们就是一样的，除了 Semigroup 额外要求 `concat`方法要具有关联性（或满足结合律）。<br />Magma 和 Semigroup 的关系大概可以用下图来描述：<br /><ImagePreviewer src="/images/awesome-fp/magma-vs-semigroup.png" alt="magma-vs-semigroup"/><br />比如，除法操作对于数字类型来说，就无法构成 Semigroup，但可以构成 Magma，如下：
+
+```typescript
+const semigroupDiv: Semigroup<number> = {
+  concat: (x, y) => x / y,
+};
+
+semigroupSum.concat(semigroupSum.concat(10, 2), 5);
+// (10 / 2) / 5 = 1
+semigroupSum.concat(10, semigroupSum.concat(2, 5));
+// 10 / (2 / 5) = 25
+```
+
+## Semigroup 的应用
+
+### Min/Max
+
+从若干数字中，取得最小值或最大值，这个逻辑完全符合 Semigroup 的约定，因此可以使用 Semigroup 来实现，如下：
+
+```typescript
+import { Semigroup } from "fp-ts/Semigroup";
+
+const SemigroupMin: Semigroup<number> = {
+  concat: (first, second) => Math.min(first, second),
+};
+
+const SemigroupMax: Semigroup<number> = {
+  concat: (first, second) => Math.max(first, second),
+};
+```
+
+虽然最大值和最小值的概念与数字类型绑定，但我们利用这种模式，可以抽象出这样的模式，即**从两个或多个对象中，根据某种标准，选择某个对象**，这时，`concat`的语义和该逻辑就会显得格格不入，因此，有时候 Semigroup 的实例方法名称也叫作`selection`。
+
+### Merging
+
+类似的，如果**将两个或多个对象，根据某种标准，合并为一个对象**，该逻辑也符合 Semigroup 的约定，但`concat`同样与逻辑语义不符，这种情况下，我们也可将该实例方法叫作`merging`，如下：
+
+```typescript
+import { Semigroup } from 'fp-ts/Semigroup'
+
+const SemigroupMergeObj: Semigroup<object> = {
+  concat: (first, second) => {...first, ...second}
+}
+
+const SemigroupMergeArr: Semigroup<Array<any>> = {
+  concat: (first, second) => {...first, ...second}
+}
+```
+
+### 与其他 Type Class 配合使用
+
+Semigroup 还可以和其他的 Type Class 配合使用，如 Option，这里直接引用`fp-ts`的例子（v1 版本）：
+
+```typescript
+import { semigroupSum } from "fp-ts/Semigroup";
+import { getApplySemigroup, some, none } from "fp-ts/Option";
+
+const S = getApplySemigroup(semigroupSum);
+
+S.concat(some(1), none); // none
+S.concat(some(1), some(2)); // some(3)
+```
+
+在 v2 版本的`fp-ts`中，`getApplySemigroup`已经被移动到了 Apply 这个[模块](https://gcanti.github.io/fp-ts/modules/Apply.ts.html#getapplysemigroup)中，针对 Apply 这个 Type Class 以及为什么该方法被移动到了这个模块中，在之后介绍 Apply 的文章中会阐述。
+
+## Folding
+
+针对上文中提及的，组合、选择、合并**多个**对象的情况，可以使用`concatAll`方法提升代码可读性，如下：
+
+```typescript
+import * as S from "fp-ts/Semigroup";
+import * as N from "fp-ts/number";
+
+const sum = S.concatAll(N.SemigroupSum)(2);
+
+console.log(sum([1, 2, 3, 4])); // => 12
+
+const product = S.concatAll(N.SemigroupProduct)(3);
+
+console.log(product([1, 2, 3, 4])); // => 72
+```
+
+这种逻辑通常被称作`folding`，即堆叠。<br />值得注意的是，`folding`逻辑下，常常需要提供一个默认参数，这是因为如果对象集合为空，我们就无法执行`concat`操作，最终的返回值也会是一个无法预判的状态（这在函数式编程中属于副作用），因此默认参数迫使这种情况下，返回值始终保持一致。
+
+## Free Semigroup
+
+对于基础数据类型，我们总是可以找到符合 Semigroup 约定的`concat`逻辑，如数字相加或相乘，字符串拼接等，而对于高级类型，如数组或对象，往往不太容易找到相应的`concat`逻辑。<br />为了解决这个问题，我们需要使用一种特殊的数据结构，叫作`NonEmptyArray`，以及它的构造方法`of`，如下：
+
+```typescript
+// represents a non-empty array, meaning an array that has at least one element A
+type ReadonlyNonEmptyArray<A> = ReadonlyArray<A> & {
+  readonly 0: A;
+};
+
+// insert an element into a non empty array
+const of = <A>(a: A): ReadonlyNonEmptyArray<A> => [a];
+```
+
+为什么要这样做？原理很简单，因此对于非空数组，我们可以轻易的实现它的`concat`方法，如下：
+
+```typescript
+// the concatenation of two NonEmptyArrays is still a NonEmptyArray
+const getSemigroup = <A>(): Semigroup<ReadonlyNonEmptyArray<A>> => ({
+  concat: (first, second) => [first[0], ...first.slice(1), ...second],
+});
+```
+
+之后，我们就可以利用它，将任何类型的数据，包装成符合约定的 Semigroup 实例，这里引用`fp-ts`的例子：
+
+```typescript
+import {
+  getSemigroup,
+  of,
+  ReadonlyNonEmptyArray,
+} from "fp-ts/ReadonlyNonEmptyArray";
+import { Semigroup } from "fp-ts/Semigroup";
+
+type User = {
+  readonly id: number;
+  readonly name: string;
+};
+
+// this semigroup is not for the `User` type but for `ReadonlyNonEmptyArray<User>`
+const S: Semigroup<ReadonlyNonEmptyArray<User>> = getSemigroup<User>();
+
+declare const user1: User;
+declare const user2: User;
+declare const user3: User;
+
+// const merge: ReadonlyNonEmptyArray<User>
+const merge = S.concat(S.concat(of(user1), of(user2)), of(user3));
+
+// I can get the same result by "packing" the users manually into an array
+const merge2: ReadonlyNonEmptyArray<User> = [user1, user2, user3];
+```
+
+例子中的`User`是一个对象，如果仅仅看对象本身，我们很难找到符合约定的`concat`的实现逻辑，但通过`of`方法将它包装为一个 NonEmptyArray 后，可以直接利用 NonEmptyArray 的 Semigroup 实例对数据进行各类操作。<br />说到这里，你可能会意识到，NonEmptyArray 只是任意数据类型的载体罢了，类似地，我们还可以将它替换为任何函数式编程中的 Type Class，如 Option，Either 等等，但这时，会涉及到另外一个概念，叫作 Monoid，在之后的文章中，我们再来介绍它。

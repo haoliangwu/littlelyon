@@ -1,0 +1,127 @@
+---
+title: The Monoid of FP
+date: 2023/07/03
+description: Monoid 是一个代数结构，它由一个集合和一个二元运算组成，满足结合律和单位元的性质。在函数式编程中，Monoid 用于描述可组合的操作，可以通过合并操作和空操作创建更复杂的结构。例如，字符串的拼接和空字符串形成了一个 Monoid。
+tag: fp
+author: You
+---
+
+import ImagePreviewer from "../components/ImagePreviewer";
+
+## 什么是 Monoid
+
+在《The Semigroup of FP》中，我们介绍了 Semigroup 以及它的超集 Magma，这篇文章我们来介绍 Monoid。<br />首先，我们先直观地表示 Monoid 与 Semigroup 还有 Magma 的关系，如下图：<br /><ImagePreviewer src="/images/awesome-fp/magma-vs-semigroup-vs-monoid.png" alt="magma-vs-semigroup-vs-monoid"/><br />在代码上，可以这样声明：
+
+```typescript
+import { Semigroup } from "fp-ts/Semigroup";
+
+interface Monoid<A> extends Semigroup<A> {
+  readonly empty: A;
+}
+```
+
+可以发现，Monoid 是 Semigroup 的子集，因此，关于 Monoid 的定义，即是满足某种条件的 Semigroup，这个条件是**存在某个值（通常称作**`**empty**`**），**满足如下约束：
+
+- Left Identity: `concat(x, empty) = x`
+- Right Identity: `concat(empty, x) = x`
+- `empty`具有唯一性
+
+这两个约束的语义是，无论我们把`empty`这个值`concat`到`x`的哪边，它们的结果是等价的，比如：
+
+- `0`对于`SemigroupSum<number>`来说，`concat(1, 0) = 1`且`concat(0, 1) = 1`
+- `1`对于`SemigroupProduct<number>`来说，`concat(2, 1) = 2`且`concat(1, 2) = 2`
+- `''`对于`SemigroupAppend<string>`来说，`concat('abc', '') = 'abc'`且`concat('', 'abc') = 'abc'`
+
+但如果`SemigroupAppend<string>`的定义是：
+
+```typescript
+const semigroupAppend: Semigroup<string> = {
+  concat: (x, y) => x + "+" + y,
+};
+
+// it is not a monoid
+semigroupAppend.concat("abc", ""); // abc+
+semigroupAppend.concat("", "abc"); // +abc
+```
+
+则它不满足 Monoid 的约束，因为不存在一个唯一的`empty`的值，使`concat(x, empty) = x`和`concat(empty, x) = x`等价。
+
+## Folding
+
+在 Semigroup 中，针对 Folding 的场景，我们需要提供一个初始值来保证当对象集合为空时，最终返回值始终是一致的。<br />在 Monoid 中，我们则不需要这个初始值，这是因为`empty`这个值可以用来表示这种情况下的状态，因此，使用 Monoid 来做 Folding 逻辑在代码实现上，会更简洁，如下（引用`fp-ts`的例子）：
+
+```typescript
+import { fold } from "fp-ts/Monoid";
+
+fold(monoidSum)([1, 2, 3, 4]); // 10
+fold(monoidProduct)([1, 2, 3, 4]); // 24
+fold(monoidString)(["a", "b", "c"]); // 'abc'
+fold(monoidAll)([true, false, true]); // false
+fold(monoidAny)([true, false, true]); // true
+```
+
+## Monoid 的应用
+
+### 使用 canvas 绘制图形
+
+> [https://codesandbox.io/s/distracted-jang-ypsj89?file=/src/index.ts](https://codesandbox.io/s/distracted-jang-ypsj89?file=/src/index.ts)
+
+第一个例子引用`functional-programming`中，讲解 Monoid 中的[例子](https://github.com/haoliangwu-sbi-dalian/functional-programming/blob/master/src/03_shapes.ts)来理解它的应用。<br />例子中代码实现的逻辑是在`canvas`中绘制图形，虽然简单绘制图形的命令式实现也比较简单，但例子中使用 Monoid 来抽象，绘制多个可能发生重叠的图形（Intersection Shapes）以及多个需要进行组合的图形（Union Shapes）。
+
+### 回填可选字段的默认值
+
+第二个例子源自`fp-ts`官方文档，它使用`getLastMonoid`获取多个 Option 中，最靠右（或最靠后）的非空值，如下：
+
+| x       | y       | concat(x, y) |
+| ------- | ------- | ------------ |
+| none    | none    | none         |
+| some(a) | none    | some(a)      |
+| none    | some(a) | some(a)      |
+| some(a) | some(b) | some(b)      |
+
+这个逻辑在业务开发中经常会用到，比如：
+
+- 查询接口中的如果每个参数未设置，要使用它的默认参数，如分页
+- 全局设置与局部设置，局部设置如果存在，则局部设置生效，反之则全局设置生效（例子中就实现了该逻辑）
+- 异步获取数据时，处于异步状态下的数据状态应当处于一个提前约定的默认值
+
+```typescript
+import { Monoid, getStructMonoid } from "fp-ts/Monoid";
+import { Option, some, none, getLastMonoid } from "fp-ts/Option";
+
+/** VSCode settings */
+interface Settings {
+  /** Controls the font family */
+  fontFamily: Option<string>;
+  /** Controls the font size in pixels */
+  fontSize: Option<number>;
+  /** Limit the width of the minimap to render at most a certain number of columns. */
+  maxColumn: Option<number>;
+}
+
+const monoidSettings: Monoid<Settings> = getStructMonoid({
+  fontFamily: getLastMonoid<string>(),
+  fontSize: getLastMonoid<number>(),
+  maxColumn: getLastMonoid<number>(),
+});
+
+const workspaceSettings: Settings = {
+  fontFamily: some("Courier"),
+  fontSize: none,
+  maxColumn: some(80),
+};
+
+const userSettings: Settings = {
+  fontFamily: some("Fira Code"),
+  fontSize: some(12),
+  maxColumn: none,
+};
+
+/** userSettings overrides workspaceSettings */
+monoidSettings.concat(workspaceSettings, userSettings);
+/*
+{ fontFamily: some("Fira Code"),
+  fontSize: some(12),
+  maxColumn: some(80) }
+*/
+```
