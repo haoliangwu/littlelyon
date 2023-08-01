@@ -35,6 +35,7 @@ export default {
           type="font/woff2"
           crossOrigin="anonymous"
         />
+        <link rel="stylesheet" href="/styles/main.css" />
       </>
     );
   },
