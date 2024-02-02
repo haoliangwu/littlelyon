@@ -1,0 +1,159 @@
+---
+title: Optimize Nextjs by AWS CloudFront
+date: 2024/02/02
+description: 主要介绍如何使用 AWS CloudFront 在内容分发时，对 Nextjs 进行优化，同时简单介绍一些 AWS CloudFront 中缓存相关的设置参数、最佳实践和采坑指南。
+tag: aws, nextjs
+author: You
+---
+import ImagePreviewer from '../components/ImagePreviewer'
+
+## 写在前面
+AWS CloudFront 是一项全球内容传送服务，它可以加速静态和动态内容的传输，并提供安全可靠的交付。CloudFront 通过将内容缓存在全球分布的边缘位置，使用户能够以低延迟和高带宽访问您的应用程序、网站、视频内容和其他静态或动态资源。
+
+Nextjs 当前是 react 官方推荐的同构渲染解决方案，因此在内容分发上，如果不是用 Vercel 提供的云服务，则势必要选择一款合适的 CDN 服务来提升访问性能，公司今年的项目已经决定 All in AWS 了，因此 CDN 方面的解决方案，就只能使用 AWS CloudFront 了。
+
+AWS CloudFront 是 AWS 提供的通用 CDN 解决方案，因此在适配 Nextjs 的过程中，需要针对 Nextjs 做适配，包括但不限于以下几点：
+* Nextjs 12.x 和 13.x 及以上版本的适配（实际上是适配 RSC）
+* Nextjs 对不同资源类型的适配（如图片）
+* Nextjs 本身对于 `Cache-Control` 头部的使用规范是怎样的，应该如何与 CDN 中的 TTL 参数配合
+* ...
+
+由于当前手上的项目，正好是一个 To C 类型的项目，且是富图片类型，因此本篇内容提出的观点和手段，更多的与图片有关，但其他类型的资源也大同小异。
+
+## AWS CloudFront 的 TTL 参数
+> https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-values-specify.html#DownloadDistValuesMinTTL
+
+TTL（Time-To-Live） 参数是指个资源在某段时间内，是否允许被忽略的时间长短，在 CDN 的场景下，它代表缓存的生命周期时长。
+
+### TTL 参数的三个维度
+
+CloudFront 中，包含以下三个维度的 TTL 参数，分别是：
+* `Minimum TTL`: 缓存的最小生命周期，代表缓存可以在 CloudFront Edge 节点中存活的最短时间
+* `Maximum TTL`: 缓存的最大生命周期，代表缓存可以在 CloudFront Edge 节点中存活的最长时间
+* `Default TTL`: 当请求资源的源响应不包含 `Cache-Control max-age` 或 `Cache-Control s-maxage` 或 `Expires` 头部时，缓存生命周期的默认值
+
+除此之外，`Default TTL` 还会间接影响 `Minimum TTL` 或 `Maximum TTL` 的默认值，不过这属于少数情况，大部分情况下，我们会显式的声明这三个值。
+
+`Minimum TTL` 为 `0` 时，具有特殊的语义，在与 `Cache-Control` 配置适用时，会对 `no-store` 和 `no-cache` 属性具有不同表现形式，详见下文。
+
+### TTL 参数与 `Cache-Control` 头部
+> https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html
+
+Http 头部中，`Cache-Control` 是当前主要用于控制缓存的头部，除了 CDN 之外，浏览器等其他客户端也会对头部按照约定的规范进行解析，之后适用不同的缓存策略。
+
+`Cache-Control` 头部中的四个重要属性 `no-cache`, `no-store`, `maxage` 以及 `s-maxage` 会与 TTL 参数产生交集，但简单概括，就是以下三种表现形式：
+* 如果不存在 `s-maxage` 属性，则 `maxage` 生效，反之 `s-maxage` 生效（`s-maxage` 对于 CDN 来说优先级更高）
+* 如果 `Minimum TTL` 为 `0`，CDN 会遵循 `no-cache` 和 `no-store` 所描述的缓存策略，如果不为 `0`，则适用 `Minimum TTL` 作为资源的缓存时间
+* 无论声明 `s-maxage` 还是 `maxage`，最终实际的缓存时间至少为 `Minimum TTL`，至多是 `Maximum TTL`，如果在两者中间，则是 `s-maxage` 或 `maxage` 本身声明的时间
+
+`Expires` 头部是 `Cache-Control` 推出前对缓存进行控制的头部，它也会与 TTL 参数产生交集，但具体表现形式和上文 `Cache-Control` 的第三种表现形式雷同，即：
+* 声明 `Expires` 头部时，最终实际的缓存时间至少为 `Minimum TTL`，至多是 `Maximum TTL`，如果在两者中间，则是 `Expires` 本身声明的时间
+
+除此之外，如果源响应不包含任何用于控制缓存的 Http 头部，则使用 `Default TTL` 作为资源的缓存时间，关于其他细节，请参数的文档[链接](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html)。
+
+### TTL 参数如何与资源进行关联
+TTL 参数是通过 CloudFront 中的 Cache Policy 和 Distribution Behavior 两个概念与资源 URI 进行关联的，它们分别有如下职能：
+* `Cache Policy`: 主要用于实现缓存策略，其中的配置除了包含 TTL 参数的三个维度，还包含类似如何生成缓存的唯一标识（key）、是否启动压缩策略（如 `gzip`）等配置
+* `Distribution Behavior`: 主要用于声明不同资源类型的分发行为，其中的配置除了包含要绑定哪个 Cache Policy 之外，还包含类似如何响应 Http 协议请求、是否支持 CORS 请求等配置
+
+所以 TTL 参数如何作用于某个资源的请求，大概如下：
+> TTL 参数 => Cache Policy => Distribution Behavior => URI Pattern => Distribution
+
+## 解决 RSC 流式渲染（Nextjs 13 及以上）带来的 URI 歧义问题
+### Nextjs 12 与 Nextjs 13 渲染方式的区别
+Nextjs 13 以上版本已经将 react 未正式发布 RSC（服务端组件）当做组件的默认渲染方式，除非你使用 `'use client'` 注解来声明某个组件应当被作为客户端组件进行渲染。
+
+在 Nextjs 12 及以前，SSR 的渲染方式大体如下：
+* 静态渲染：Client Request => Static HTML => Static Render
+* 动态渲染：Client Request => Assets for Client Page or Components => Dynamic Render
+
+在 Nextjs 13 之后，由于引入了 RSC 概念，SSR 的渲染方式转变为了基于 RSC 的流式渲染，大体如下：
+* 静态渲染：Client Request => Static HTML/RSC Fragments => Static Render
+* 动态渲染：Client Request => RSC Fragments/Assets for Client Page or Components => Dynamic Render
+
+### RSC Fragments 是什么
+RSC Fragments 是什么呢，大概就是类似下面这种代码片段：
+```
+1:HL["/_next/static/css/80506ffa9630a426.css",{"as":"style"}]
+0:["ec0a33f96325d33b711a7133b2df0f43325ab905",[[["",{"children":["(auth)",{"children":["__PAGE__",{}]}]},"$undefined","$undefined",true],"$L2",[[["$","link","0",{"rel":"stylesheet","href":"/_next/static/css/80506ffa9630a426.css","precedence":"next"}]],"$L3"]]]]
+4:"$Sreact.suspense"
+5:I{"id":17747,"chunks":["5364:static/chunks/5364-8995ebdbbf9e4cf1.js","6974:static/chunks/6974-5a1da44f4459b8bd.js","3185:static/chunks/app/layout-003f87ab804b8f1c.js"],"name":"","async":false}
+
+// 省略...
+```
+
+这些片段是 React 将 RSC 在服务端渲染时，序列化为的 JSON 片段，客户端获取这些片段后，可以在浏览器中，反序列化这些片段将其还原为 React 组件，之后再进行渲染。由于这些片段本身的颗粒度比 HTML 更小，使得页面的渲染不在基于页面这个维度，因此它也是流式渲染的技术前提，关于 RSC 本身，不是这篇文章的重点，之后有机会专门写一篇进行分享。
+
+### AWS CloudFront 缓存策略适配
+了解了 RSC 是什么之后，我们会发现，Nextjs 13 的页面 URI，在不同的渲染时机下，会返回不同的数据，如下：
+* 首次渲染：会直接返回提前生成好的 HTML 文档
+* 增量渲染：在首次渲染之后，会返回提前生成好或动态生成的 RSC Fragments
+
+那么 Nextjs 如何区分什么时候返回 HTML，什么时候返回 RSC Fragments 呢？答案非常简单，它会在请求时，增加一个 `Rsc: 1` 的 HTTP 自定义头部用于表示当前请求是在做增量渲染，因此需要返回 RSC Fragments。
+
+所以，如果不对 AWS CloudFront 的缓存策略做适配，默认情况，它会使用资源的 URI 来作为缓存标识符，但这会使其在缓存 Nextjs 13 返回的资源时，有时会由于 URI 歧义问题引发应用崩溃，如下：
+* 用户 A 首次访问 /a 页面，Nextjs 返回了 HTML 文档，然后访问 /b 页面，Nextjs 返回 RSC Fragments
+* AWS CloudFront 分别使用 /a 和 /b 作为响应资源的标识符
+* 用户 B 首次访问 /a 页面，AWS CloudFront 发现 /a 命中缓存，直接返回 HTML，用户 B 可以正常访问页面，之后用户 B 也访问 /b 页面，/b 同样命中缓存，AWS CloudFront 会返回 RSC Fragments，用户 B 仍然可以正常页面（因为不是首次渲染）
+* 用户 C 首次访问 /b 页面，由于 /b 命中 AWS CloudFront 缓存，会返回 RSC Fragments，但由于用户 C 是首次访问页面，并没有加载用于解析 RSC Fragments 的上下文环境，因此，页面会直接展示 RSC Fragments 而不是正常的页面，从而引发页面崩溃现象
+* 用户 B 首次访问 /c 页面，Nextjs 返回了 Html 文档，
+
+解决方案如下，由于这个问题是由于 Nextjs 13 渲染方式而引起的 URI 歧义性造成的，我们只需要显式地告诉 AWS CloudFront 如何区分不同返回类型的 URI 即可。
+
+由于我们已经知道，RSC 请求会在请求中，增加 `Rsc: 1` 自定义头部，所以在 AWS CloudFront 的缓存配置中，只需要将 `Rsc` 头部，关联到缓存标识符的生成逻辑中即可，如下：
+
+<ImagePreviewer src="/images/nextjs-with-cloudfront/img1.png" alt="how to add Rsc header to AWS CloudFront Cache Identifier"/>
+
+这样 AWS CloudFront 针对同一个 URI 请求，除了使用 URI 作为缓存标识符之外，还会额外考虑 `Rsc` 头部，从而解决 URI 歧义性的问题。
+
+## 启用 Nextjs 图片优化后，图片缓存失效或错误
+该问题和上面的问题类似，原因在于启用 Nextjs 的图片 `optimized` 选项之后，所有的静态图片的静态请求路径，会统一被替换为类似 `/_next/image?url=%2Fimages%2Flogo.png&w=128&q=75` 的形式，大体的语义如下：
+* `/_next/image` 是 Nextjs 返回图片资源的 endpoint
+* `url` 指图片本身的 URI，这里的例子（转义前）是 `/images/logo.png`
+* `w` 和 `q` 是配置参数，代表返回图片的宽度（`width`）和质量（`quality`）
+
+Nextjs 的图片优化原理大体上是这样的，因为图片往往是页面加载性能中，非常重要的一环，针对图片的优化策略，大体就是对源图片进行二次处理（如格式、大小、质量），上面的 `w` 和 `q` 正式告诉 Nextjs 如何对图片进行转换的 query 参数。
+
+因此，假如未启动图片优化的图片 URI 是 `/images/logo.png`，启用后会变成 `/_next/image?url=%2Fimages%2Flogo.png&w=128&q=75`，如果不对 AWS CloudFront 做适配，根据它会仅使用 URI 作为默认的缓存标识符，这种情况下，所有的图片，均会使用 `/_next/image` 这个 key 进行标识，这样就产生了图片缓存失效和错误的问题。
+
+得知了产生问题的原因，类似地，我们也是要通过配置的方式，让 AWS CloudFront 能够更精确地标识资源，由于启用图片优化后，虽然 URI 产生了变化，但产生问题的关键在于 AWS CloudFront 忽略了 URI 中的控制图片转化的 query 参数，因此，我们只需将 query 参数关联到缓存标识符的生成逻辑中，如下：
+
+<ImagePreviewer src="/images/nextjs-with-cloudfront/img2.png" alt="how to add query params to AWS CloudFront Cache Identifier"/>
+
+这里，我将 `Query strings` 设置为了 `All`，意味着它会将所有 query 参数作为缓存标识符的依赖，这无疑会造成缓存命中率的下降，但由于当前这个项目仅存在 Nextjs 图片优化的场景使用了 query 参数，同时不同图片在不同设备的使用情况，也具有排他性（即 PC 端不会显示 SP 端的图片），使用 `All` 并不会产生该问题。
+
+除了 `All` 之外，我们还可以通过反向排除或者参数列表的方式，显式地声明哪些 query 参数应该作为缓存标识符的依赖，从而两全其美的解决问题，如下：
+<ImagePreviewer src="/images/nextjs-with-cloudfront/img3.png" alt="more query params settings"/>
+
+另外，有些场景下，可能会遇到和 `Cookie` 相关的场景，AWS CloudFront 也支持针对 Cookie 的配置，解决方案大同小异，这里就不在赘述了。
+
+## 逆向工程：NextJS 如何使用 `Cache-Control`
+### page, eg: .html or RSC fragments
+> GET /ja/myPage
+>
+> Cache-Control: s-maxage=31536000, stale-while-revalidate
+
+### page with `revalidate` metadata（Nextjs 13）
+> GET /ja/myPage
+>
+> Cache-Control: public, max-age=0, must-revalidate
+
+### static assets, eg: .js, .css
+> GET /_next/static/chunks/pages/myPage-f4d2c6d754042cde.js
+>
+> Cache-Control: public, max-age=31536000, immutable
+
+### data assets, eg: .json
+> GET /_next/data/11383c7c516e46a6cdcbfb317701c894dff43f30/ja/myPage.json
+>
+> Cache-Control: s-maxage=31536000, stale-while-revalidate
+
+### optimized images
+> GET /_next/image?url=%2Fimages%2Flogo.png&w=128&q=75
+>
+> Cache-Control: public, max-age=60, must-revalidate
+
+### public images
+> GET /images/footer_bg_xl.png
+>
+> Cache-Control: public, max-age=0
