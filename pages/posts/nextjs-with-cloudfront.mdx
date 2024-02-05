@@ -129,31 +129,43 @@ Nextjs 的图片优化原理大体上是这样的，因为图片往往是页面�
 
 ## 逆向工程：NextJS 如何使用 `Cache-Control`
 ### page, eg: .html or RSC fragments
-> GET /ja/myPage
->
-> Cache-Control: s-maxage=31536000, stale-while-revalidate
+```
+GET /ja/myPage
+
+Cache-Control: s-maxage=31536000, stale-while-revalidate
+```
 
 ### page with `revalidate` metadata（Nextjs 13）
-> GET /ja/myPage
->
-> Cache-Control: public, max-age=0, must-revalidate
+```
+GET /ja/myPage
+
+Cache-Control: public, max-age=0, must-revalidate
+```
 
 ### static assets, eg: .js, .css
-> GET /_next/static/chunks/pages/myPage-f4d2c6d754042cde.js
->
-> Cache-Control: public, max-age=31536000, immutable
+```
+GET /_next/static/chunks/pages/myPage-f4d2c6d754042cde.js
+
+Cache-Control: public, max-age=31536000, immutable
+```
 
 ### data assets, eg: .json
-> GET /_next/data/11383c7c516e46a6cdcbfb317701c894dff43f30/ja/myPage.json
->
-> Cache-Control: s-maxage=31536000, stale-while-revalidate
+```
+GET /_next/data/11383c7c516e46a6cdcbfb317701c894dff43f30/ja/myPage.json
+
+Cache-Control: s-maxage=31536000, stale-while-revalidate
+```
 
 ### optimized images
-> GET /_next/image?url=%2Fimages%2Flogo.png&w=128&q=75
->
-> Cache-Control: public, max-age=60, must-revalidate
+```
+GET /_next/image?url=%2Fimages%2Flogo.png&w=128&q=75
+
+Cache-Control: public, max-age=60, must-revalidate
+```
 
 ### public images
-> GET /images/footer_bg_xl.png
->
-> Cache-Control: public, max-age=0
+```
+GET /images/footer_bg_xl.png
+
+Cache-Control: public, max-age=0
+```
