@@ -5,7 +5,7 @@ description: 简单介绍 react 推出 useImperativeHandle 这个 hook 的前因
 tag: js, react
 author: You
 ---
-import { Example1, Example2, Example3, Example4, Example5 } from '../components/examples/NewHooksOfReact'
+import { Example1, Example2, Example3, Example4, Example5 } from '../../components/examples/NewHooksOfReact'
 
 ## 写在前面
 众所周知，react 从推广 hook 依赖，所有的组件已经函数化，这意味着组件没有 `this` 的概念，因此，如果组件的某个状态是通过 `useState` 声明的，而非按照单向数据流的方式，将其声明为 `prop`，就无法将其转变为受控组件（因为你无法主动更改这些内部状态）。
