@@ -21,7 +21,7 @@ AWS CloudFront 是 AWS 提供的通用 CDN 解决方案，因此在适配 Nextjs
 由于当前手上的项目，正好是一个 To C 类型的项目，且是富图片类型，因此本篇内容提出的观点和手段，更多的与图片有关，但其他类型的资源也大同小异。
 
 ## AWS CloudFront 的 TTL 参数
-> https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-values-specify.html#DownloadDistValuesMinTTL
+> [DownloadDistValuesMinTTL](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-web-values-specify.html#DownloadDistValuesMinTTL)
 
 TTL（Time-To-Live） 参数是指个资源在某段时间内，是否允许被忽略的时间长短，在 CDN 的场景下，它代表缓存的生命周期时长。
 
@@ -37,7 +37,7 @@ CloudFront 中，包含以下三个维度的 TTL 参数，分别是：
 `Minimum TTL` 为 `0` 时，具有特殊的语义，在与 `Cache-Control` 配置适用时，会对 `no-store` 和 `no-cache` 属性具有不同表现形式，详见下文。
 
 ### TTL 参数与 `Cache-Control` 头部
-> https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html
+> [Expiration](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/Expiration.html)
 
 Http 头部中，`Cache-Control` 是当前主要用于控制缓存的头部，除了 CDN 之外，浏览器等其他客户端也会对头部按照约定的规范进行解析，之后适用不同的缓存策略。
 
