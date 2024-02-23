@@ -43,7 +43,7 @@ Server Actions 的概念虽然听起来高大上，但实际上它的本质，�
 </form>
 ```
 
-这就实现了一个极简的用于实现 login 功能的表单，当点击 Submit 按钮时，会提交 `uname` 和 `pwd` 字段至服务端的 `login_action.php` 端点中，从而触发后续逻辑。
+这就实现了一个极简的用于完成 login 功能的表单，当点击 Submit 按钮时，会提交 `uname` 和 `pwd` 字段至服务端的 `login_action.php` 端点中，从而触发后续逻辑。
 
 ajax 之所以在后来作为较常用的异步数据提交方式，是因为 `form` 在提交时，页面会进行跳转，这种页面跳转交互，在现在追求极致 UX 的情况下，是要尽可能避免的。
 
@@ -213,6 +213,22 @@ class UserStore {
   }
 }
 ```
+
+### 表单请求
+Server Actions 的请求头部，可以发现 `Content-Type` 是 `multipart/form-data`，而 `Accept` 是 `text/x-component`，前者对应 `FormData`，后者对应 RSC 协议。
+
+<ImagePreviewer src = "/images/why-server-actions/img3.png" alt = "form request headers" />
+
+表单请求的 payload 就是 FormData，其中的值不太容易看懂，但实际上是根据 RSC 协议将视图状态进行序列化后的字符流，关于 RSC 协议，会在以后的文章中进行归纳和分享，当前就把它当做一种用于在服务端和客户端之间，将与视图有关的状态，进行序列化传输的网络协议即可。
+<ImagePreviewer src = "/images/why-server-actions/img4.png" alt = "form request payload" />
+
+### 表单响应
+Server Actions 的请求头部，可以发现 `Content-Type` 是 `text/x-component`，也是对应 RSC 协议。
+
+<ImagePreviewer src = "/images/why-server-actions/img5.png" alt = "form response headers" />
+
+表单响应的 payload 就是 RSC 字符流，客户端接受到字符流后，会以 Stream 的方式，对视图状态进行更新。
+<ImagePreviewer src = "/images/why-server-actions/img6.png" alt = "form response payload" />
 
 ## React 相关的 hooks
 为了使 Server Actions 更好地运作，React 在 Canary 版本加入了四个 hook 来支持它，如下：
