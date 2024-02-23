@@ -219,7 +219,7 @@ Server Actions 的请求头部，可以发现 `Content-Type` 是 `multipart/form
 
 <ImagePreviewer src = "/images/why-server-actions/img3.png" alt = "form request headers" />
 
-表单请求的 payload 就是 FormData，其中的值不太容易看懂，但实际上是根据 RSC 协议将视图状态进行序列化后的字符流，关于 RSC 协议，会在以后的文章中进行归纳和分享，当前就把它当做一种用于在服务端和客户端之间，将与视图有关的状态，进行序列化传输的网络协议即可。
+表单请求的 payload 就是 FormData，其中的值有些是可以看懂的，有些不太容易看懂，这些看不懂的与 RSC 协议有关，关于 RSC 协议，会在以后的文章中进行归纳和分享，当前就把它当做一种用于在服务端和客户端之间，将与视图有关的状态，进行序列化传输的网络协议即可。
 <ImagePreviewer src = "/images/why-server-actions/img4.png" alt = "form request payload" />
 
 ### 表单响应
