@@ -1,0 +1,168 @@
+---
+title: 深入理解 RSC
+date: 2024/02/27
+description: 通过逆向工程和阅读源码的方式，深入理解下 RSC 的工作原理以及 RSC 协议，以及 RSC 在 NextJS 中是如何被应用的。
+tag: react, nextjs
+author: You
+---
+import ImagePreviewer from '../../components/ImagePreviewer'
+
+## RSC 是什么
+RSC 是 React Server Component 的缩写，它是 React 即将发布的新的组件类型，当前已经可以在 canary 版本和 Nextjs 13 及以上版本中使用。
+
+引用官方的一张示例图来说明它的用途，如下：
+<ImagePreviewer src="/images/rsc-in-depth/img1.png" alt="the offical intro of React RSC"/>
+
+从表面上看，似乎和当前的 SSR 渲染没什么太大区别，将 Server Component 替换成 Page Component 就可以了嘛。
+
+但 RSC 的意义主要在于可以使服务端和客户端以**协作**的方式来渲染页面，“协作”这个关键字很重要，我没有使用类似“共同”、“一起”这种关键字的原因在于，协作更好地说明了 RSC 在 React（或 Nextjs）在追求同构渲染架构上的重要地位。
+
+在 Next 12 及之前，虽然页面的渲染方式从 SPA 的方式，转变为了 SSR，但是它的渲染颗粒度，是 Page 级别的，服务端与客户端渲染页面的方式，并不能够称作协作，因为在本质上，服务端和客户端渲染页面的方式是不相同的，它们的职责可以简单概括为服务端**直出静态 html 文档**，而客户端负责**填充数据**和**处理动态逻辑**。
+
+## RSC 渲染服务
+RSC 的设计目的，并不是单纯为了取代服务端或客户端的当前已有的渲染方式，而是在其基础上，额外提供了一个独立于它们的渲染服务。
+
+在引入 RSC 之前，由于我们并没有显式区分组件类型，因此 React Component 都是按照当前 Client Component 的方式而渲染的，SPA 和 SSR 的区别，仅仅在于组件渲染的运行时是不同的（一个在浏览器，而一个在服务端）。在引入 RSC 之后，我们会有意识地区分 Server Component 和 Client Component，前者用于抽象**依赖于数据源**的组件，而后者用于抽象**依赖于局部状态或用户交互**的组件。之所以以这两个依赖项为边界来抽象不同类型的组件，我认为主要目的在于同时发挥 SPA 和 SSR 在渲染过程中的优势，即页面渲染速度要快，SEO 要足够好，同时用户体验的上限也要足够高。
+
+这里引用 reactwg 中关于 Server Component 讨论中的图片来进行说明，RSC 在当前页面渲染周期中所处的角色和作用。
+
+未引入 RSC 之前，页面渲染的流程大概是这样的：
+<ImagePreviewer src="/images/rsc-in-depth/img2.png" alt="render workflow without RSC"/>
+
+引入 RSC 之后，可以发现，RSC 并未对已有的渲染流程造成侵入式的影响：
+<ImagePreviewer src="/images/rsc-in-depth/img3.png" alt="render workflow with RSC"/>
+
+由于 RSC 已经作为一项独立的用于进行渲染的服务了，那么对于它来说，一些使用该服务的调用者，都可以被称作是 Client，这个 Client 可以是之前的 Page Component，也可以是原本就在客户端渲染的客户端组件，但不管怎样，它们都是 React Component，因此可以通过 RSC 服务进行渲染。
+<ImagePreviewer src="/images/rsc-in-depth/img4.png" alt="RSC is universal render service for all React Components"/>
+
+关于该渲染服务的源码，我在官方仓库看了一圈，约莫是 [ReactFlightServer](https://github.com/facebook/react/blob/main/packages/react-server/src/ReactFlightServer.js)，虽然它被标记为 experimental。
+
+## Nextjs 中的 RSC
+在 Nextjs 13 之后，请求页面的 URL 中，如果包含类似 `_rsc=xxxxx` 的 query 参数，则代表该 URL 返回一个 RSC 组件，比如：
+<ImagePreviewer src="/images/rsc-in-depth/img6.png" alt="url with rsc query param"/>
+
+另一个具有标识特征的地方，是该请求同时也会包含一个 `Rsc: 1` 的头部，如图：
+<ImagePreviewer src="/images/rsc-in-depth/img9.png" alt="url with rsc request header"/>
+
+而响应中的 Content-Type 头部的值是 `text/x-component`，它也代表响应中包含的 payload 是按照 RSC 协议序列化的字符流。
+<ImagePreviewer src="/images/rsc-in-depth/img7.png" alt="url with rsc response content-type header"/>
+
+字符流大概是下面这个样子：
+<ImagePreviewer src="/images/rsc-in-depth/img8.png" alt="url with rsc response string stream of rsc protocol"/>
+
+针对字符流的含义，会在下一节进行阐述。
+
+## 逆向工程：解读 RSC 字符流
+
+结合 ReactFlightServer 的源码，可以尝试对一些简单的 RSC 字符流进行解读（这里的示例源自 Nextjs 13，而 Nextjs 13 对 RSC 的实现和 ReactFlightServer 不完全一致，但大体结构和语义是类似的）。
+
+比如某个请求 RSC 的响应，会接受到如下字符流：
+```
+0:"$L1"
+3:"$Sreact.suspense"
+5:"$PServerCtx"
+1:[["$","h1",null,{"children":"Hello World!"}],["$","h2",null,{"children":["Windows_NT"," ","x64"," ","10.0.19045"]}],"2023-09-08T15:00:48.349Z","$L2",["$","$3",null,{"fallback":"loading","children":"$L4"}],["$","$5",null,{"value":1,"children":"$L6"}]]
+6:["$","div",null,{"children":1}]
+2:["$","div",null,{"children":"foo"}]
+4:["$","div",null,{"children":"foo"}]
+```
+
+这些片段即是使用 RSC 协议的字符流，它们看起来非常像 Virtual DOM 的数据结构，虽然有一些区别，但用途上，它们是 Server Component 在渲染后的序列化结构。以上的片段，实际上对应的 JSX 代码如下：
+```jsx
+<>
+    <h1>Hello World!</h1>
+    <h2>
+      {OS.type()} {OS.arch()} {OS.release()}
+    </h2>
+    {new Date().toISOString()}
+    <Foo />
+    <Suspense fallback="loading">
+      <Foo />
+    </Suspense>
+    <Ctx.Provider value={1}>
+      <Bar />
+    </Ctx.Provider>
+</>
+```
+我们来尝试逐行破解下这个 React Server Component Payload：
+* `0:"$L1"`：$L 在 ReactFlightServer 中表示 `SerilizeLazyId`，[详见](https://github.com/facebook/react/blob/41f0e9dae3b81396dc29a4735b355ea318cc5772/packages/react-server/src/ReactFlightServer.js#L600)。它的含义很简单，就是指向后续某行片段所代表的 React 组件，这里指向第 1 行，也就是 `1:[["$..` 这行
+  * 如果是类似 `$2` 这种格式，则代表 `SerilizeId`，一个 id 是否 lazy，取决于它表示的组件是否包含异步逻辑
+* `3:"$Sreact.suspense"`：同样的，`$S` 在 ReactFlightServer 中表示 `SerializeSymbolReference`，[详见](https://github.com/facebook/react/blob/41f0e9dae3b81396dc29a4735b355ea318cc5772/packages/react-server/src/ReactFlightServer.js#L612C10-L612C34)。它的含义也比较直接，就是指向类似 `Suspense` 等这种特殊的 React Symbol，类似的还有 Portal，[详见](https://github.com/facebook/react/blob/main/packages/shared/ReactSymbols.js)。
+* `5:"$PServerCtx"`：$P 在 ReactFlightServer 中表示 `SerializeProviderReference`，[详见](https://github.com/facebook/react/blob/41f0e9dae3b81396dc29a4735b355ea318cc5772/packages/react-server/src/ReactFlightServer.js#L616C10-L616C36)。它表示这里的组件类型是一个 Context Provider。
+* 第四行比较长，我们将它按照 JSON 格式化一下（需要去除前缀`1:`），增加可读性，如下：
+```js
+[
+  // 代表 h1 标签，子元素是一个文字节点
+  ["$", "h1", null, { children: "Hello World!" }],
+  
+  // 代表 h2 标签，子元素是一个文字节点，但它有多个 string 拼接完成
+  [
+    "$",
+    "h2",
+    null,
+    { children: ["Windows_NT", " ", "x64", " ", "10.0.19045"] },
+  ],
+  
+  // 代表一个文字节点，没什么特殊的
+  "2023-09-08T15:00:48.349Z",
+  
+  // 代表指向 id 为 2 的 SerilizeLazyId，即 2:["$","div",null,{"children":"foo"}]
+  "$L2",
+  
+	// 类似的，指向 id 为 3 的 SerilizeId，即 3:"$Sreact.suspense"
+  // 同时它的子元素指向 id 为 4 的 SerilizeLazyId，即 4:["$","div",null,{"children":"foo"}]
+  ["$", "$3", null, { fallback: "loading", children: "$L4" }],
+  
+	// 同行，节点本身指向 5:"$PServerCtx"，子元素指向 6:["$","div",null,{"children":1}]
+  ["$", "$5", null, { value: 1, children: "$L6" }],
+]
+```
+将上面的格式片段中的 SerilizeLazyId 做等价替换后，我们可以得到如下片段：
+```js
+[
+  ["$", "h1", null, { children: "Hello World!" }],
+  [
+    "$",
+    "h2",
+    null,
+    { children: ["Windows_NT", " ", "x64", " ", "10.0.19045"] },
+  ],
+  "2023-09-08T15:00:48.349Z",
+  ["$", "div", null, { children: "foo" }],
+  [
+    "$",
+    "$Sreact.suspense",
+    null,
+    { fallback: "loading", children: ["$", "div", null, { children: "foo" }] },
+  ],
+  [
+    "$",
+    "$PServerCtx",
+    null,
+    { value: 1, children: ["$", "div", null, { children: 1 }] },
+  ],
+]
+```
+之后，React 会在客户端，将这些 React Server Component Payload 反序列化为组件，同时渲染为 html，如下：
+```html
+<h1>Hello World!</h1>
+<h2>Windows_NT x64 10.0.19045</h2>
+2023-09-08T15:00:48.349Z
+<div>foo</div>
+<div>foo</div>
+<div>1</div>
+```
+实际渲染的页面如下：
+
+<ImagePreviewer src="/images/rsc-in-depth/img5.png" alt="example of RSC protocol"/>
+
+## RSC 与 Async State Management
+当前客户端的异步状态管理解决方案，指 `swr` 或 `react-query` 这种通过使用声明式范式来获取数据的请求库，之所以被称作异步状态管理解决方案，是因为数据获取的方式是异步的，而这些库将其中涉及到的状态，按照统一的方式进行管理，一定程度上解决了类似 `redux` 这种全局状态管理库要解决的问题。
+
+这种解决方案最早出现在 GraphQL 当中，因为 GraphQL 本身是通过声明式的查询语句来声明数据查询逻辑，而 Client 会按照约定发送查询请求、获取数据，然后缓存查询结果以提升查询效率，这种模式慢慢发展出了更轻量化的异步状态管理解决方案，就是后来的 `swr` 或 `react-query`，其内部实现逻辑，不再耦合获取数据的方式，而是提供了一套约定，从而可以抽象使用任何方式，从任何数据源获取数据的异步逻辑。
+
+这类解决方案在 Next.js 中仍然可以使用，但它本身与 SSR 的设计初衷相违背，因为不论这些类库的怎么获取数据，获取数据的时机始终发生在运行时，这对于追求 FCP 指标的应用来说，还是太“慢”了。同时，对于很多 To B 场景的应用，使用这种声明式请求库，反而会造成额外的心智负担和编码成本，To B 场景的应用对页面渲染的性能指标并不敏感，反而对数据的一致性和准确性非常敏感，但由于异步状态管理通常借用缓存来提高数据的可复用性和页面加载的速度，往往会导致一些意想不到的 bug，因此异步状态管理在使用场景上，我认为更适合 To C 场景的应用。
+
+由于 RSC 本身赋予了 React Component 以内联的形式，直接在组件获取异步数据，而非将其封装为一个 effect 并通过 `useEffect` 调用，一定程度上取代了这种异步状态管理的部分职能，当然，只是一定程度，由于 RSC **只会**在组件渲染时执行一次，对于需要**多次**执行的异步获取逻辑，仍然需要在客户端的 Client Component 中执行。当然，Nextjs 基于 RSC 和 fetch 设计和实现了缓存和 revalidate 机制，也可以类似后者的模式，或者基于 Nextjs 提供的 Route Handler 来实现。
+
+总之，在 RSC 的大前提下，Async State Management 已经显得有些多余，最佳实践应当是**通过 RSC 和设计合理的 Suspense 边界**来处理这些异步状态逻辑。
