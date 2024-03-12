@@ -1,0 +1,455 @@
+---
+title: Performance Testing with K6
+date: 2024/03/12
+description: 介绍如何通过 k6 来对系统进行各种维度的 e2e 性能测试，同时如何在 AWS 上构建完整的 CI/CD 体系。
+tag: aws
+author: You
+---
+import ImagePreviewer from '../../components/ImagePreviewer'
+
+## k6 是什么
+[Grafana k6](https://k6.io/docs/) 是一款开源负载测试工具，可以让协助开发者轻松高效地以 e2e 的方式进行性能测试。
+
+所谓 e2e，是指端到端，或者可以被称为黑盒，因为在性能测试的过程中，k6 是以调用 API 的方式进行的，而调用 API 的请求，会经历某个系统中的若干组件或子系统。
+
+e2e 的方式，是比较接近最终用户使用系统的方式的，如果采用白盒的方式，那么性能的瓶颈往往局限于某个系统组件本身，而根据水桶原理可知，一个系统整体的性能，往往取决于性能最慢的那个子系统或组件，而 k6 正是为了发现这种性能瓶颈而存在的。
+
+同时，它是基于 golang 实现的，但测试用例的编写却基于 javascript，这使它能够同时在运行性能和开发体验两个维度之间，达到一个平衡点。
+
+## k6 如何抽象性能测试中的负载
+性能测试中，负载是一个首先考虑的概念，k6 中用于抽象负载的三个概念分别是：
+* `vus`: 即 Virtual Users，代表用户本身
+* `iteration`：即迭代，我们可以将具体的负载逻辑，实现在每次迭代的回调函数中
+* `duration/stages`: 即持续时间或阶段，代表性能测试需要进行多久，`duration` 仅仅和时间相关，而 `stages` 还会将 `vus` 的概念引入进来，即在某个时间阶段，有多少终端用户
+
+## k6 的测试用例如何编写
+引用官方的示例：
+```js
+import http from 'k6/http';
+import { check, sleep } from 'k6';
+
+export const options = {
+  vus: 10,
+  duration: '30s',
+};
+
+export default function () {
+  const res = http.get('https://httpbin.test.k6.io/');
+  
+  check(res, { 'status was 200': (r) => r.status == 200 });
+}
+```
+
+k6 的测试用例编写十分简单，因为它使用 javascript 写法，同时支持 `es module`，当文件使用 `default export` 导出一个函数时，这个函数会被当作每个 `iteration` 执行时的回调函数。
+
+在这个例子中，每次 `iteration` 会访问 `https://httpbin.test.k6.io/` 网址并检查它的返回状态码为 `200`。
+
+同时，用例还会 `export` 一个 `options` 对象，该对象包含与 k6 如何执行该测试用例的配置信息，比如 `vus` 和 `duration` 这两个负载维度，例子中所描述的负载是，会以 10 个 `vus` 为用户规模，在 `30s` 内持续执行 `iteration` 内的逻辑。
+
+持续关键字很重要，因为 k6 在执行 `iteration` 时，不会仅仅执行一次，而是会持续不断的执行，直到持续时间超过 `duration` 所设置的值。
+
+类似地，也可以通过 `stages` 来描述更加复杂的负载场景，比如：
+```js
+export const options = {
+  stages: [
+    { duration: '30s', target: 20 },
+    { duration: '1m30s', target: 10 },
+    { duration: '20s', target: 0 },
+  ],
+};
+```
+它表示这样一个负载场景，k6 会在 30s 之内，从 0 增长到 20 `vus` 的规模，之后的 1m30s 内，逐步降低至 10 `vus` 的规模，最后 20s 之内，逐步下降至 0。
+
+除此之外，还可以包含类似 `init`、`setup` 以及 `teardown` 等与生命周期相关的方法，[详见](https://k6.io/docs/using-k6/test-lifecycle/)。
+
+## 如何使用前端工程化改善 k6 开发体验
+虽然 k6 支持 javascript 以及 es module，但 js 的运行时并不等价于浏览器或者 `nodejs`，[详见](https://k6.io/docs/#what-k6-does-not)。
+
+同时它虽然支持 es module，但并不是所有的 es 规范下的语法均支持，比如 `...` 操作符，在当前这个时间点，几乎百分之 99 的开发者，都习惯于使用它来进行解构操作，无论在开发效率还是代码可读性上，它都会带来好处，然而事与愿违，k6 并不支持该语法特性。
+
+而且，k6 在执行测试用例时，无法本地模块的引用逻辑，这限制了开发者引用 `node_modules` 或抽象通用模块（如负责统计 `metrics` 的模块）的可能性。
+
+综上所述，我们需要通过前端工程化的方式，来提升开发体验，包括但不限于：
+* 引入代码编译器如 `babel` 或直接使用 `typescript` 来编写测试用例，从而可以使用所有 es 规范下的语法特性
+* 引入打包器，如 `rollup`，从而可以将 `node_modules` 或本地模块，打包为单个文件供 k6 执行
+* 针对编写测试用例中的约定，可以通过 `eslint` 来做静态代码分析，在编写时进行提示
+
+### 集成 typescript
+在实际项目中，我们使用如下 `tsconfig.json` 来作为编译 k6 测试用例的配置文件：
+```json
+{
+  "compilerOptions": {
+    "target": "ES5",
+    "moduleResolution": "node",
+    "module": "ES6",
+    "allowJs": true,
+    "skipLibCheck": true,
+    "outDir": "lib"
+  },
+  "include": ["**/*.ts"]
+}
+```
+值得一提的是，这里将 `target` 设置为 `es5` 的原因是为了尽可能的兼容 k6 所支持的 js 语法，虽然在执行时，会造成额外的性能开销，但考虑到 `iteration` 内的逻辑通常并不会太复杂，因此将 `es5` 作为编译目标规范是没有任何问题的。
+
+引入该配置文件后，支持 typescript 的编辑器即可在编写测试用例时，进行代码自动补全建议、类型推断和检查以及错误提示。
+
+### 集成 rollup
+如果仅仅考虑支持更多的语法特性这个问题本身，使用 typescript 已经足够了，因为使用它的 `tsc` 指令即可，但 `tsc` 只能满足编译需求，如果我们想顺带解决与引用 `node_modules` 或本地依赖的问题，则需要使用打包器，而 `rollup` 作为拥抱 es module 规范的下一代打包器，无疑是首选。
+
+项目中使用的配置文件如下：
+```js
+import esbuild from 'rollup-plugin-esbuild'
+
+const config = {
+  output: {
+    dir: './lib',
+    format: 'esm',
+    entryFileNames: 'test.js',
+  },
+  plugins: [
+    esbuild({
+      include: /\.[jt]sx?$/,
+      exclude: /node_modules/,
+      target: 'es2015',
+      sourceMap: true,
+      minify: false,
+    }),
+  ],
+  external: [
+    'k6',
+    'k6/crypto',
+    'k6/data',
+    'k6/encoding',
+    'k6/execution',
+    'k6/experimental/timers',
+    'k6/html',
+    'k6/http',
+    'k6/metrics',
+    'k6/net/grpc',
+    'k6/ws',
+  ],
+}
+
+export default config
+```
+
+配置中并没有什么特殊的配置，就是一个比较经典的用于编译 typescript 的配置，这里使用 `esbuild` 来编译 typescript，但其实使用其他编译技术都是可以的，比如 `babel`。
+
+值得注意的是，由于以 `k6` 开头的模块均是 k6 在运行时，自动注入的原生模块，因此它们不应当在编译时，参与依赖模块的遍历过程，这里使用 `external` 来实现这点（我这里的实现有点复杂了，更好的是通过正则表达式）。
+
+之后，我们每次通过 k6 命令执行测试用例时，不再以测试用例的源文件为参数，而是 `test.js`，它是 rollup 的打包产出物，根据场景，我们可以使用如下命令编译它：
+* 开发时：`rollup -w -c rollup.config.mjs -i src/test.ts`
+* 运行时：`rollup -c rollup.config.mjs -i src/test.ts`
+
+它们的区别仅仅在于使用使用 `-w` 参数，使 rollup 进行 `watch` 模式，它会在测试用例的源码发生变更时，重新进行编译。
+
+执行时，直接通过 k6 cli 执行即可，如: `k6 run ./lib/test.js`。
+
+## 借鉴 PO 思想来抽象测试用例
+在自动化测试中，有一种开发模式叫作 PO，即 Page Object，其核心理念是对 OOP 在自动化测试领域下的延伸，即将对页面的操作按对象方式进行抽象，从而解决编写自动化测试用例时，代码冗余、可复用性低的问题。
+
+PO 模式下，最核心的几个概念包含:
+* `testcase`: 即测试用例本身，往往包含多个 `macro`
+* `macro`: 即宏指令，往往包含多个 `command`
+* `command`: 即指令，每个指令遵守 SRP（单一职责原则），只完成一件事
+* `locator`: 即定位器，负责抽象页面元素的定位逻辑
+
+可以发现，PO 模式的抽象就是基于 OOP 所衍生出来的，通过将自动化测试中编写测试用例涉及的概念抽象为对象，来进行统一进行管理和封装。
+
+借鉴该模式，我们也可以针对 k6 的测试用例进行抽象，k6 虽然是一个 e2e 性能测试工具，但它并不局限于测试 API 还是静态资源，只要请求是基于 http 协议即可。
+
+但在实践中，针对不同业务场景下的性能测试，往往在实施上和指标收集上有不同的考量：
+* 在 API 场景下：更在乎 `p95` 等性能指标，且需要解决 API 本身的认证问题
+* 在静态资源场景下：更在乎 `FCP` 等性能指标，且大部分请求是无状态的
+
+同时在测试用例的如何部署和运行时，又需要在颗粒度上有所考虑，比如同一个测试用例，是否应当只测某个 API，还是该测试用例，应该可以支持将 API URL 作为参数进行传递，以满足可以测试任何 API 的场景。
+
+在项目中，我采用如下概念来对 k6 的测试用例进行抽象：
+* `testcase`：即测试用例本身，往往会作为执行某个 `scenario` 的运行时环境，如单体 API 测试就应当抽象为 `testcase`，它负责协调相同类型的 `scenario` 如何按照统一的模式执行，比如是否先执行认证逻辑、`scenario` 的执行几次等逻辑 
+* `scenario`: 即测试场景，往往是与业务相关的逻辑实现，比如单体 API 测试用例下，类似某个 API 如何调用、调用的依赖关系、如何传参、如何校验调用结果等逻辑，都应当是在 `scenario` 中实现的
+
+我们可以按照面向接口编程的思想来理解它们的关系，即 `testcase` 等价于是抽象类，而 `scenario` 则是该抽象类中的接口方法的具体实现。
+
+### `testcase` 的实现
+`testcase` 本身就是 k6 的测试用例，因此只要基于 `vus`、`iteration` 以及一些声明周期函数，可以很轻松的实现剥离掉实现细节（即 `scenario`）的测试用例。
+
+这里引用项目中，负责单体 API 测试的测试用例（部分代码被省略），如下：
+```ts
+// singleton.test.ts
+import { check } from 'k6'
+import exec from 'k6/execution'
+import { RefinedResponse } from 'k6/http'
+
+import { checkSuccessResponse, resolveUser } from './utils'
+import scenario, { healthCheck, login } from './singleton.scenario'
+
+export const options = {
+  duration: '10s',
+  vus: 1,
+}
+
+interface SetupFixture {}
+
+/**
+ * @description the following envs should be passed:
+ *
+ * ARG1: string, the scenario function name to handle how to send http request
+ * ARG2: string(JSON), the payload passing to scenario request handler
+ * ARG3: number, the count of scenario api invocation
+ * ARG4: string, the scenario function name to handle how to prepare the fixture data before iteration
+ * ARG5: string(JSON), the payload passing to scenario fixture preparation handler
+ */
+export default function (setupFixture: SetupFixture) {
+  const user = resolveUser()
+
+  if (!user) {
+    exec.test.abort(`abort the iteration because the invalid user`)
+  }
+
+  if (typeof __ENV.ARG1 !== 'string') {
+    exec.test.abort(
+      `please declare __ENV.ARG1 as scenario function name, it is required`
+    )
+  }
+
+  const scenarioName = String(__ENV.ARG1)
+
+  let params = {}
+
+  if (typeof __ENV.ARG2 === 'string' && __ENV.ARG2.length > 0) {
+    try {
+      params = JSON.parse(`${__ENV.ARG2}`)
+    } catch (err) {
+      exec.test.abort(
+        `abort the iteration because invalid JSON string for __ENV.ARG2`
+      )
+    }
+  }
+
+  const invocationCount =
+    !__ENV.ARG3 || Number.isNaN(Number(__ENV.ARG3)) ? 1 : Number(__ENV.ARG3)
+
+  const fragments = scenarioName.split('/')
+  const isAnonymous = fragments.length >= 2 && fragments[1] === 'pub'
+
+  if (!isAnonymous) {
+    login(user)
+  }
+
+  const handler = scenario[scenarioName]
+
+  if (typeof handler !== 'function') {
+    exec.test.abort(`the scenario ${scenarioName} is not supported yet`)
+  }
+
+  if (!isAnonymous) {
+    healthCheck(user)
+  }
+
+  for (let i = 0; i < invocationCount; i++) {
+    const res: RefinedResponse<'text'> | undefined = handler({
+      ...params,
+      fixture: setupFixture,
+    })
+
+    if (res) {
+      check(
+        res,
+        {
+          [`${scenarioName} is successful`]: checkSuccessResponse,
+        }
+      )
+    }
+  }
+}
+
+export function setup(): SetupFixture {
+  if (!__ENV.ARG4) return {}
+
+  const scenarioName = String(__ENV.ARG4)
+
+  let params = {}
+
+  if (typeof __ENV.ARG5 === 'string' && __ENV.ARG5.length > 0) {
+    try {
+      params = JSON.parse(`${__ENV.ARG5}`)
+    } catch (err) {
+      exec.test.abort(
+        `abort the iteration because invalid JSON string for __ENV.ARG5`
+      )
+    }
+  }
+
+  const handler = scenario.setup[scenarioName]
+
+  if (typeof handler !== 'function') {
+    exec.test.abort(`the setup scenario ${scenarioName} is not supported yet`)
+  }
+
+  return handler({
+    ...params,
+  })
+}
+```
+
+该 `testcase` 用于抽象发送单体 API 请求的性能测试场景，在项目中使用它来衡量某个单体 API 的性能瓶颈，它满足以下需求点：
+* 能够动态满足不同 API 的发送逻辑，即满足代码的可复用性
+* 同时支持非认证模式和认证模式
+* 对于幂等请求，可以满足多次发送的场景
+    * 虽然多次发送的场景也可以通过执行 `iteration` 来解决，但这种方式在认证场景下，由于认证逻辑也会执行多次，会对性能指标造成一定程度的干扰
+* 支持 `setup` 声明周期，对于需要提前准备测试数据的场景进行支持
+
+值得一提的是，用作抽象动态参数的环境变量命名，都是类似 `ARG1`、`ARG2` 等这样的模式，这么命名的主要动机在于，不同 `testcase` 都是包含动态传参的需求的，但是参数本身语义很大概率上是不同的，因此为了在 CI/CD 层面做统一的向下兼容（即 CI/CD 在实现层不需要考虑传参语义，只需关注如何传参），才使用这种命名方式。
+
+### `scenario` 的实现
+`scenario` 的实现则就比较简单了，因为它仅仅是一个实现逻辑，且具有多态性，如下：
+```ts
+// singleton.scenario.ts
+import { check, fail, sleep } from 'k6'
+import exec from 'k6/execution'
+
+import { User } from './types'
+import { failed } from './metrics'
+import * as api from './api'
+
+export const todo = () => {
+  exec.test.abort('the current scenario status is todo')
+}
+
+export const login = (user: User) => {
+  let res = api.oauthLogin()
+
+  sleep(1)
+
+  res = res.submitForm({
+    formSelector: '#kc-form-login',
+    fields: {
+      ...user,
+    },
+    params: {
+      tags: {
+        org: 'hashport',
+      },
+    },
+  })
+
+  // need submit the consent form
+  if (res.url.indexOf('/login-actions/required-action') > -1) {
+    res = res.submitForm({
+      formSelector: '.form-actions',
+      params: {
+        tags: {
+          org: 'hashport',
+        },
+      },
+    })
+  }
+
+  const isAuth = check(
+    res,
+    {
+      'authentication(hashport) is successful': r => r.status === 200,
+    },
+    {
+      org: 'hashport',
+    }
+  )
+
+  if (!isAuth) {
+    failed.add(true, { org: 'hashport', scenario: 'oauth' })
+
+    fail(
+      `OAuth authentication is failed ${res.error_code} of vu ${user.username}`
+    )
+  } else {
+    failed.add(false, { org: 'hashport', scenario: 'oauth' })
+  }
+
+  return res
+}
+
+export const self = () => {
+  return api.self()
+}
+
+// ...省略若干代码
+
+export default {
+  login,
+  self,
+  // ...省略若干代码
+}
+```
+
+可以发现，`scenario` 本身也是参造了 k6 的约定，即通过导出一个默认对象方式，来导出若干 `scenario` 实现函数，在调用时，只需要在 CI 运行时，将需要执行的 `scenario` 名称（即这里的 `key` 值）传递给 `ARG1` 环境变量即可。
+
+## 如何在 AWS 中集成 CI
+由于公司的项目使用 AWS，AWS 中用于实现 CI 的服务是 `CodeBuild`，这里直接引用 `buildspec.yml` 并加以说明：
+```yml
+version: 0.2
+
+env:
+  variables:
+    APP_ENV: dev
+    K6_VUS: 10
+    K6_STAGES: '10m'
+    TESTCASE: singleton
+    ARG1: self
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 18
+  pre_build:
+    commands:
+      - echo Pull k6 docker image...
+      - docker pull ghcr.io/grafana/xk6-dashboard
+
+      - echo Enter the workspace directory...
+      - cd ./k6
+
+      - echo Install npm packages...
+      - npm i
+      - npm run build -- ./src/${TESTCASE}.test.ts
+  build:
+    commands:
+      - echo Run performance test...
+      - docker run
+        --user $UID
+        --mount type=bind,source=$CODEBUILD_SRC_DIR/k6/logs,target=/tmp/logs
+        --mount type=bind,source=$CODEBUILD_SRC_DIR/k6/fixture,target=/tmp/fixture
+        -e K6_VUS=$K6_VUS
+        -e K6_STAGES=$K6_STAGES
+        -i ghcr.io/grafana/xk6-dashboard run
+        -e APP_ENV=$APP_ENV
+        -e FIXTURE_PATH=/tmp/fixture
+        -e ARG1=$ARG1
+        -e ARG2=$ARG2
+        -e ARG3=$ARG3
+        -e ARG4=$ARG4
+        -e ARG5=$ARG5
+        --out web-dashboard=export=/tmp/logs/report.html
+        --quiet - <lib/test.js
+  post_build:
+    commands:
+      - echo Performance test complete...
+
+artifacts:
+  files:
+    - k6/lib/**/*
+    - k6/logs/**/*
+```
+
+`buildspec.yml` 本身没有什么特殊的地方，我认为需要值得注意的地方只有类似 `ARG1`、`ARG2` 的环境变量是如何传递的，因为 `CodeBuild` 中，我们需要使用 `docker`，而测试用例通过 `docker` 还是 k6 cli 执行，是存在挺大区别的。
+
+同时，这里使用的 docker image 是 `ghcr.io/grafana/xk6-dashboard`，可以发现它并不是原始的 k6 image，而是包含 k6 扩展插件的 image，这是因为除了执行性能测试本身之外，我们还期望可以生成测试报告，而 `xk6-dashboard` 可以满足这一点，[详见](https://github.com/grafana/xk6-dashboard)。
+
+由于我们这里配置了 `artifacts`，生成的测试报告会上传到指定的 `S3` 静态桶中，报告的样子大概如下图所示：
+<ImagePreviewer src="/images/perf-testing-with-k6/img1.png" alt="xk6-dashboard perf report overview part" />
+<ImagePreviewer src="/images/perf-testing-with-k6/img2.png" alt="xk6-dashboard perf report timing part" />
+<ImagePreviewer src="/images/perf-testing-with-k6/img3.png" alt="xk6-dashboard perf report summary part" />
+
+## 总结
+这篇文章并未包含所有与 k6 相关的东西，只是一篇较简短的实践指南，k6 本身的特性和功能非常丰富，同时它还支持强大的插件系统，可以针对不同的需求进行满足，比如 `xk6-dashboard`。
+
+另外如果有足够预算的话，可以尝试使用 [k6-cloud](https://app.k6.io/)，它提供整套的 SasS 解决方案，用于满足不同的性能测试场景。
