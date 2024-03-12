@@ -317,55 +317,7 @@ export const todo = () => {
 }
 
 export const login = (user: User) => {
-  let res = api.oauthLogin()
-
-  sleep(1)
-
-  res = res.submitForm({
-    formSelector: '#kc-form-login',
-    fields: {
-      ...user,
-    },
-    params: {
-      tags: {
-        org: 'hashport',
-      },
-    },
-  })
-
-  // need submit the consent form
-  if (res.url.indexOf('/login-actions/required-action') > -1) {
-    res = res.submitForm({
-      formSelector: '.form-actions',
-      params: {
-        tags: {
-          org: 'hashport',
-        },
-      },
-    })
-  }
-
-  const isAuth = check(
-    res,
-    {
-      'authentication(hashport) is successful': r => r.status === 200,
-    },
-    {
-      org: 'hashport',
-    }
-  )
-
-  if (!isAuth) {
-    failed.add(true, { org: 'hashport', scenario: 'oauth' })
-
-    fail(
-      `OAuth authentication is failed ${res.error_code} of vu ${user.username}`
-    )
-  } else {
-    failed.add(false, { org: 'hashport', scenario: 'oauth' })
-  }
-
-  return res
+  return api.oauthLogin()
 }
 
 export const self = () => {
