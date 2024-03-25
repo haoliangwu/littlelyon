@@ -1,0 +1,147 @@
+---
+title: A Practical Summary of AWS IAM for EXPO
+date: 2024/03/22
+description: 在 EXPO 项目中，使用 AWS IAM 服务实现各类业务场景的实战经验总结。
+tag: aws
+author: You
+---
+import ImagePreviewer from '../../components/ImagePreviewer'
+
+## 写在前面
+关于 IAM 的理论知识，可以参考[这篇](https://www.littlelyon.com/posts/aws-iam-in-action)文章。
+
+IAM 作为 AWS 中最核心的模块服务，在每个项目中，都扮演至关重要的角色，因为应用系统与 AWS 资源交互、AWS 资源之间的交互都会涉及若干鉴权逻辑的设计与实现，如果无法在 IAM 服务至上设计合理的鉴权逻辑，那应用系统的上限必定会打折扣。
+
+在 EXPO 项目实施过程中，IAM 的设计考量，主要涉及以下几个方面：
+* 如何赋予不同职责的团队相应的 AWS 权限
+* 对于工作负载（Workload），如 ECS、Lambda 等，如何赋予相应的 AWS 权限
+* 关于使用永久/临时 Credential 的取舍
+* 如何针对不同部署环境（如 dev、stg 和 prod）进行权限隔离
+* 在使用跳板机的前提下，如何以同构的方式，将其融入 IAM 的鉴权流程之中
+* ...
+
+以上所列举的各个方面，只是当前所能想到的比较重要的考量点，在不同场景下，可能还会衍生出若干比较细致的考量点，这里暂不赘述了。
+
+下面以案例实现的角度，分别阐述在 EXPO 项目中，是怎样使用 IAM 模块服务的。
+
+## 对业务主体进行抽象
+业务主体是一个比较宽泛的概念，它可以有以下几种表现形式：
+* 一个业务部分往往包含许多职责不同的团队
+* 每个团队成员本身都是一个独立的主体
+* 不同颗粒度的工作负载
+* 进行某种鉴权逻辑的需求点或动机本身可以构成一个主体
+
+### 抽象业务团队
+我们可以通过 IAM Group 来抽象职责不同的业务团队，比如：
+* 按工作职责划分：可以分为需求团队（PO）、开发团队（DEV）、基础设施团队（Infra）、管理团队（Admin）等
+* 按技术栈划分：可以分为前端团队（JS）、后端团队（Java）等
+* 按业务逻辑划分：可以分为业务操作（Operator）、业务审批（Approver）等
+* 按读写等级划分：可以分为可读（ReadOnly）、可读可写（ReadWrite）等
+
+由于在 AWS 中，一个 IAM User 可以同时属于多个 IAM Group，因此可同时使用多种划分策略，从不同维度抽象业务团队。
+
+IAM Group 的颗粒度越细，鉴权逻辑越灵活，但要注意，并不是越细越好，因为当颗粒度细到一定程度时，IAM Group 会无限趋近于 IAM User，在这种情况下，反而不如直接使用 IAM User 更直截了当。
+
+值得注意的是，IAM Group 在鉴权时，它所拥有的权限的生命周期是永久的，同时将 IAM User 与某个 IAM Group 的绑定操作也属于低频操作，因此在安全等级较高的场景下，不建议采用该种方式，而应当使用 IAM Role。
+
+<ImagePreviewer src="/images/aws-expo-summary/img2.png" alt="overview of iam group"/>
+
+### IAM User
+IAM User 通常与团队中的自然人一一对应，同时也是与其他 IAM 主体发生交集的常用主体之一。除了用于抽象自然人，IAM User 也可以用于抽象虚拟主体（如上图中的 `DevApp1` 和 `TestApp1`），比如工作负载、虚拟用户等。
+
+值得注意的是，虽然 IAM User 可以用于抽象工作负载，但这种做法在 AWS 的最佳实践中属于反模式，这是因为 IAM User 所拥有的权限生命周期较长，在安全等级较高的场景下，非常容易发生问题。
+
+如果必须要使用该模式，建议采取以下措施：
+* 禁用该 IAM User 访问 AWS Console
+* 赋予该 IAM User 的 Policy 应当要尽可能的具体，并严格禁止使用通配符语法
+* 对该 IAM User 绑定相应的 Permission Boundary
+* 禁止赋予该 IAM User 关于 `iam:*` 的 IAM Action
+* 使用 `aws:SourceIp` 条件操作符，限制 IAM User 执行操作的运行时网络环境（如工作负载的运行环境）
+
+这里针对第五点，提供 IAM Policy 的参考方式，如下：
+```json
+// OfficeOnly
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "sts:AssumeRole"
+            ],
+            "Condition": {
+                "NotIpAddress": {
+                    "aws:SourceIp": [
+                        // CIDR whitelist...
+                    ]
+                }
+            },
+            "Effect": "Deny",
+            "Resource": "*"
+        }
+    ]
+}
+```
+
+### IAM Role
+IAM Role 应当是最常用的 IAM 主体，它同时也是 AWS 最佳实践中推荐的鉴权方式，最主要的原因在于，IAM Role 本身并不与任何业务主体耦合，而是业务主体通过扮演 IAM Role 的方式来获取相应的权限，这意味着权限的生命周期较短，同时由于 Policy 与 IAM Role 耦合，因此在变更权限时，也更加灵活。
+
+使用 IAM Role 的场景通常包含以下几种：
+* 限制或赋予某些 AWS Service 的权限，这种 IAM Role 有时也被称作 Service Role，项目中包含：
+  * `ECSTaskExecutionRole`: 用于限制 ECS 创建 Task 的权限
+  * `CloudWatchLogsUploadRole`：用于限制使用 CloudWatch 日志服务的权限
+  * `EventBridgeSchedulerSnsRole`：用于赋予 EventBridge 使用 SNS 的权限
+* 抽象工作负载，项目中包含：
+  * `SSMSessionManagerRole`：绑定于 EC2 跳板机，用于抽象被 System Manager 托管的 EC2 实例
+  * `S3UploadNftAssetsByLambdaRole`：绑定于 lambda 函数，用于抽象处理 image 的 lambda handler
+  * `GithubAssumeRoleWithWebIdentity`: 绑定于 Github Action，用于抽象 Github 中负责 CI/CD 的工作负载
+* 抽象业务操作角色，项目中包含：
+  * `Expo2025AppOperatorReadOnlyRole`: 具有所有可读权限，如访问 CloudWatch 日志、访问 S3 桶等
+  * `Expo2025AppOperatorRole`: 具有 Operator 的权限，如切换维护模式、变更 ECS Task 实例数量等
+  * `Expo2025CodePipelineApproverRole`: 具有 Approver 的权限，如审批 CodePipeline 的部署请求、切换 CodeDeploy 的流量转发等
+
+值得一提的是，IAM Role 也可以作为扮演其他 IAM Role 的主体，因此通过增加扮演 IAM Role 次数的方式，虽然该方式增加了鉴权流程的复杂度，但也提高了灵活性，降低了耦合度，并在某些场景下是必须采用的方式，如实现跨账户的鉴权逻辑，详见下方“对部署环境进行权限隔离”章节。
+
+<ImagePreviewer src="/images/aws-expo-summary/img3.png" alt="overview of iam role"/>
+
+## 为工作负载绑定 IAM 主体
+在实际项目中，如果我们决定通过绑定虚拟 IAM User 的方式至某个工作负载时，该工作负载需具备以下特征：
+* 工作负载不可被公共访问
+  * 如开发环境下的工作负载，一般具有私有性
+* 工作负载的运行时间是永久或长期的
+  * 如 EC2 实例
+* 工作负载的权限比较简单
+  * 如 CloudWatch RUM，仅需要上传日志至 CloudWatch 的权限
+
+如果不符合以上特征，最好使用 IAM Role 来作为工作负载的鉴权方式。
+
+## 对部署环境进行权限隔离
+### 跨账号鉴权的前提条件
+假设 A 账户需要访问 B 账户的 C 资源，IAM 在跨账户的场景下，必须要满足以下两个条件，才可以通过鉴权流程（详见）：
+* A 账户需要具有访问 B 账户 C 资源的权限
+* B 账户允许 A 账户访问 C 资源
+
+<ImagePreviewer src="/images/aws-expo-summary/img1.png" alt="aws iam evaluation under cross-account"/>
+
+关于第一点，A 账户仅可以通过 Identity Based Policy 来进行授权，可以是授权访问 B 账户中的 C 资源，也可以是 B 账户中的 IAM Role。
+
+关于第二点，B 账户即可以通过 C 资源的 Resource Based Policy 进行授权，也可以通过声明一个 IAM Role 并绑定相应的 Identity Based Policy，之后 A 账户通过扮演该 IAM Role 来访问 C 资源。
+
+只有同时满足这两点，跨账户鉴权的流程才能够达成。
+
+当然，如果 B 账户中的 C 资源具有公共访问的权限，那 A 账户同样可以进行访问，但这种情况不在我们需要讨论的范围之内。
+
+这里建议不要直接在 A 账户中，直接赋予访问 B 账户 中 C 资源的权限，这是因为 C 资源属于 B 账户，因此它可能在未来发生变动，这样 A 账户的权限必须要做出相应修改。
+
+理想实现应当是，A 账户应赋予扮演 B 账户中某个 IAM Role 的权限，同时 B 账户设置 A 账户为该 IAM Role 的信任关系主体，对于 C 资源的访问权限则绑定在该 IAM Role 中。
+
+### 以同构方式适配外部依赖
+在软件架构中，"同构"（isomorphic）通常指的是具有相同结构或形式的组件、模块或系统。
+
+在这里，我们期望以相同的流程来适配所有与鉴权逻辑相关的系统组件，比如跳板机、OAuth IDP 等。
+
+当前项目中，我们可以使用如下服务来适配所提及的外部系统组件：
+* 跳板机：使用 AWS System Manager 中的 Session Manager 来完成日常工作中，所需要的会话连接、执行命令等任务
+* OAuth IDP: 使用 AWS Cognito 集成 Google OAuth IDP 并绑定至 Cognito Identify Pool 赋予相应的 IAM 权限或扮演某个 IAM Role
+* Github Action: 以联合用户的身份，集成 Github OAuth IDP，使其在鉴权时自动扮演某个 IAM Role
+
+<ImagePreviewer src="/images/aws-expo-summary/img4.webp" alt="overview of cross-account iam role assuming"/>
