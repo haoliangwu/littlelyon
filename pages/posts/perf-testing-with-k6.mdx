@@ -170,6 +170,9 @@ PO 模式下，最核心的几个概念包含:
 
 我们可以按照面向接口编程的思想来理解它们的关系，即 `testcase` 等价于是抽象类，而 `scenario` 则是该抽象类中的接口方法的具体实现。
 
+### 解决方案架构图
+<ImagePreviewer src="/images/perf-testing-with-k6/img6.png" alt="the diagram for k6 perf testing solution" />
+
 ### `testcase` 的实现
 `testcase` 本身就是 k6 的测试用例，因此只要基于 `vus`、`iteration` 以及一些声明周期函数，可以很轻松的实现剥离掉实现细节（即 `scenario`）的测试用例。
 
