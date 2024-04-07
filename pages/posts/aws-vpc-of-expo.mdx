@@ -1,0 +1,92 @@
+---
+title: A Practical Summary of AWS VPC for EXPO
+date: 2024/03/29
+description: 在 EXPO 项目中，关于 VPC 的实战经验总结。
+tag: aws
+author: You
+---
+import ImagePreviewer from '../../components/ImagePreviewer'
+
+## 写在前面
+关于 VPC 的理论知识，可以参考[这篇](https://www.littlelyon.com/posts/aws-vpc-in-action)文章。
+
+与 IAM 类似，VPC 同样是 AWS 中扮演至关重要角色的核心服务之一，因为各类系统服务，归根结底是运行在云平台的工作负载，而工作负载彼此需要网络通信，它们就需要安全、高效、合理的网络架构方案。
+
+在 EXPO 项目实施过程中，VPC 的设计考量，主要涉及以下几个方面：
+* 如何界定 Trusted Zone 的边界
+* 如何实现不同级别的网络访问控制策略
+* 不同 VPC 之间如何通信
+* 如何规划子网
+* ...
+
+以上所列举的各个方面，只是当前所能想到的比较重要的考量点，在不同场景下，可能还会衍生出若干比较细致的考量点，这里暂不赘述了。
+
+下面以案例实现的角度，分别阐述在 EXPO 项目中，是怎样使用 VPC 模块服务的。
+
+## 子网规划
+### 子网的个数与划分
+根据 AWS 的最佳实践，所有工作负载均要在部署时优先考虑高可用，即**至少**要在部署至两个可用区，因此，在最小规模下，子网个数应当是 2，这些工作负载大部分和业务有强耦合关系（如 ECS）或者是 AWS 强制要求（如 ALB）。
+
+虽然如此，但并不是所有的 AWS 资源都强制要求高可用，比如 ec2 实例（跳板机）、NAT 网关等，均可以单例模式部署，这种做法的动机大多是为了节省成本，比如构建开发环境。在这种情况下，为了迎合单一数据源的原则，倾向于将这些资源都部署到同一个子网中，并与业务工作负载的子网分离。
+
+因此，为了同时满足以上两点，子网的个数至少应当为 3。
+
+### 公有子网和私有子网
+常见的网络架构图，通常都会包含 Trusted Zone 的概念。
+
+在 AWS 中，Trusted Zone 的边界在于外部请求是否可以访问子网内的资源，如果可以访问，则这些子网在 Trusted Zone 之外，反之，则属于 Trusted Zone。
+
+因此，我们有时候也会用公有子网（Public Subnet）和私有子网（Private Subnet）来区分子网，它们的特征如下：
+* 公有子网：路由表包含指向 Internet 网关的记录，外部请求可直接访问该子网内的资源
+* 私有子网：路由表不包含指向 Internet 网关的记录，外部请求不可直接访问该子网内的资源（但仍然可以通过 VPN 或 Private Link 的方式进行访问）
+    * 如果路由表包含指向 NAT 网关的记录，虽然它也算作私有子网，但由于网络流量**只出不进**，有时候也被称作受保护子网（Protected Subnet）
+
+## 网络访问控制
+### 安全组
+安全组（Security Group）本身可以被看作是某个网络接口（如虚拟网卡）的 4 层网络协议防火墙，因此任何与网络接口相关的网络访问控制，应当通过安全组来实现。
+
+在 EXPO 项目中，我们通过安全组实现需求：
+* 限制跳板机的网络访问权限，只可以通过公司内部的网络环境访问
+* 限制工作负载被访问时的端口和网络协议，如 ALB 只可以通过 `http/80` 或 `https/443` 被访问，跳板机只可以通过 `ssh/22` 被访问
+* 限制工作负载发送外部请求时，访问资源的端口和网络协议，如 ECS 只可以访问 `https` 协议的 URI
+* 根据 CIDR 实现白名单访问模式
+
+### Network ACL
+Network ACl 和安全组类似，只不过它是针对整个 VPC 的，而非某个网络接口，使用场景和安全组如出一辙，EXPO 项目并没有特殊使用 Network ACl 来做网络访问控制。
+
+### WAF
+AWS WAF 是 AWS 提供的服务，服务和资源的区别在于，服务所包含的工作负载是 AWS 管理的，而资源是我们来管理。
+
+AWS WAF 本身可以与众多 AWS 资源相关联，如 ALB、CloudFront、Lambda、API Gateway 等，在 EXPO 项目中，我们仅将 ALB 和 CloudFront 资源与 WAF 绑定。
+
+它的网络模型是 7 层网络模型，这意味着除了基于 CIDR 进行网络访问控制之外，还可以声明根据域名、HTTP 头部等更加复杂的条件进行控制的规则，但值得注意的是，WAF 是无状态防火墙（Stateless），如果期望使用有状态防火墙，请使用 AWS Network Firewall。
+
+在 EXPO 项目中，与 WAF 相关联的需求基本与实现白名单访问模式相关，无非是网络访问控制的限制条件不同，比如：
+* 根据 CIDR 来限制
+    * 对业务端开放访问权限
+    * 对 VPC 中的 NAT 网关开发访问权限
+    * 对跳板机开发访问权限
+* 根据 HTTP 头部限制
+    * 鉴别访问 ALB 的流量来自于 CloudFront 而非直接访问
+* 根据流量特征限制，如来源于某个国家
+    * 鉴别流量来源于日本或新加坡
+
+### 对比图
+
+<ImagePreviewer src="/images/aws-expo-summary/img5.jpg" alt="comparasion between aws firewalls"/>
+
+## 跨 VPC 通信
+跨 VPC 通信的解决方案有很多，EXPO 项目中通过建立 VPC Peering Connections 的方式来实现。
+
+之所以没有使用诸如 Transit Gateway 的解决方案，是因为 EXPO 的跨 VPC 通信需求太简单了，需求点仅包含在 dev 环境的 ec2 跳板机可以访问 stg 环境下的网络环境。
+
+大家可能会说，如果通过公网的方式，不也可以直接访问另一个 VPC 吗？只要安全组的规则设置合理，但这样做违反了开闭原则，同时也一定程度上，增加了安全风险。
+
+值得一提的是，使用 VPC Peering Connections 的前提条件是，各个 VPC 的 CIDR 不能重叠，原因是如果重叠，那同一个 IP 地址就有可能同时映射到不同的 VPC 环境之中，这会造成歧义性。
+
+VPC Peering Connections 确实简单易用，但它本身存在一些限制，比如：
+* 多个 VPC 之间，无法以多对多的关系，直接进行绑定
+* 两个 VPC 之间，只可以有唯一的 Peering Connection
+* 通过 Peering Connection 访问的 VPC 内，无法访问内置的 AWS DNS 服务器 
+
+因此，VPC Peering 的跨 VPC 通信方案，只适合规模较小的场景，对于较大的场景，请使用 Transit Gateway。
