@@ -39,21 +39,17 @@ export type SiteConfig = {
 
 const siteConfig: SiteConfig = {
     title: 'Lyon Wu',
-    subtitle: 'Forget the Label',
-    description: 'Astro.js and Tailwind CSS theme for blog and portfolio by justgoodui.com',
+    subtitle: 'Forget the Label.',
+    description: 'The personal blog of Lyon Wu.',
     image: {
-        src: '/dante-preview.jpg',
-        alt: 'Dante - Astro.js and Tailwind CSS theme'
+        src: '/logo.jpg',
+        alt: 'Lyon Wu - Forget the Label'
     },
     headerNavLinks: [
         {
             text: 'Home',
             href: '/'
         },
-        // {
-        //     text: 'Projects',
-        //     href: '/projects'
-        // },
         {
             text: 'Blog',
             href: '/blog'
@@ -92,18 +88,18 @@ const siteConfig: SiteConfig = {
         }
     ],
     hero: {
-        // title: 'Hi, 我是 haoliang.wu, 一名专注于 Web 领域的全栈工程师。',
+        title: 'Never forget why you started, and your mission can be accomplished.',
         // text: '在 Web 领域，我拥有丰富的实战经验，可以针对各种实际问题给予切实可行的解决方案和建议。在运维、性能和安全方面，我也拥有宝贵的实践经验和必要知识，同时一直致力于编写可扩展、高可用、可维护和健壮的应用程序和模块，为我的团队创造价值。我热衷于探索新技术，不断学习并与团队不断成长，致力于创造更好的用户体验和业务价值。同时我坚信，华丽的跌倒，胜过无谓的徘徊。不忘初心，方得始终。',
-        // image: {
-        //     src: '/hero.jpeg',
-        //     alt: 'A person sitting at a desk in front of a computer'
-        // },
-        // actions: [
-        //     {
-        //         text: 'Get in Touch',
-        //         href: '/contact'
-        //     }
-        // ]
+        image: {
+            src: '/hero.jpg',
+            alt: 'the girls of overwatch'
+        },
+        actions: [
+            {
+                text: 'Get in Touch',
+                href: '/contact'
+            }
+        ]
     },
     // subscribe: {
     //     title: 'Subscribe to Dante Newsletter',
