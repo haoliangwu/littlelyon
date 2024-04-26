@@ -1,0 +1,62 @@
+---
+title: React Hook 之 useImperativeHandle
+publishDate: 2024/02/06
+excerpt: 简单介绍 react 推出 useImperativeHandle 这个 hook 的前因后果，以及它的源码是怎样实现的。
+tags: 
+    - js
+    - react
+author: You
+---
+import { Example1, Example2, Example3, Example4, Example5 } from '../../components/react/examples/NewHooksOfReact'
+
+## 写在前面
+众所周知，react 从推广 hook 依赖，所有的组件已经函数化，这意味着组件没有 `this` 的概念，因此，如果组件的某个状态是通过 `useState` 声明的，而非按照单向数据流的方式，将其声明为 `prop`，就无法将其转变为受控组件（因为你无法主动更改这些内部状态）。
+
+## 举个例子
+比如下面这个例子，假设我们需要在 Parent 组件中，实现 reset 逻辑：
+
+<Example1 />
+
+由于这个例子非常简单，标准解法肯定是按照单向数据流的方式进行改造，排除掉这种方式的话，要解决这个问题，通常有两种方案。
+
+## 通过 useEffect 实现 watch 逻辑
+一种是额外声明一个 `prop` 状态作为受控组件的外部依赖状态，内部配合 `useEffect` 实现 watch 逻辑，来监听 `prop` 状态的变化，之后同步更改内部状态，比如：
+
+<Example2 />
+
+这种解法某种程度和单向数据流的实现原理是一样的，只是在实际项目中因某些客观原因，不得已的妥协而已，比如 Child 的组件的状态太复杂了，使用单向数据流对这些状态进行重构已不太现实，它归根结底是一种 workaround，同时将 `useEffect` 作为 watch 使用，是一种反模式。
+
+这种方法是反模式的原因在于，随着代码维护工作的推进，watch 逻辑非常容易被滥用，从而导致 `useEffect` 数组的依赖变得非常复杂，在这时，由于 `useEffect` 的 effect handler 频繁触发，往往会引发意想不到的 bug 和性能问题，因此这种模式，能少用就尽量少用，能不用就尽量不用。
+
+## 通过 ref 暴露子组件内部方法
+另外一种方式是使用 `ref`，将其与某个 dom 节点或组件绑定起来，之后再暴露给父组件，从而赋予父组件可以按照命令式的方式，与子组件进行交互，如下：
+
+<Example3 />
+
+这种方式是在 `useImperativeHandle` 未发布之前，相对比较优雅的解法，它利用 `ref` 实例 mutable 的特性，将子组件中的某些对象引用暴露给父组件进行调用。
+
+大多数情况下，我们可能是将 `ref` 绑定到某个 dom 节点，从而以面向 dom 的思想去解决问题，这种使用方式从 react 的角度看，是一种反模式，这是因为它打破了数据驱动的思想，而回退到了面向 dom 的思想。因此，更好的方式是，`ref` 应当绑定到组件本身，而非 dom 节点，虽然函数式组件没有 `this`，但是构建一个对象对于 js 来说，并没有任何难度，比如上面的例子，如果我不直接传递 `setCount` 方法的引用，还可以自定义一个对象来表示 Child 组件本身（并假装这个对象就是 `this`），如下：
+
+<Example4 />
+
+## useImperativeHandle 语法糖
+说到这里，也就该说这篇文章的主角了 `useImperativeHandle`，那么它到底做了什么呢？其实就是官方帮你把上面例子中的事儿实现并作为语法糖提供给了开发者。
+
+因此，只需要将上面例子中，使用 `useMemo` 来创建 `ChildFakeThis` ref 对象的代码，替换成 `useImperativeHandle` 即可，如下：
+
+<Example5 />
+
+源码中关于 `useImperativeHandle` 的 effect 实现在[这里](https://github.com/facebook/react/blob/0a53c465743264d3b0544f4579f26c7b4a8053fb/packages/react-reconciler/src/ReactFiberHooks.js#L2513C10-L2513C32)以及[这里](https://github.com/facebook/react/blob/0a53c465743264d3b0544f4579f26c7b4a8053fb/packages/react-reconciler/src/ReactFiberHooks.js#L2543)。
+
+可以发现，在源码中，`useImperativeHandle` 的核心实现原理和上面例子中如出一辙，就是利用 `ref`，看起来比较复杂，是因为 react-reconciler 本身比较复杂（需要考虑很多其他 case）。
+
+如果这个逻辑不写在 reconciler 中，完全可以拿 `useEffect` 或者 `useMemo` 写一个平替版本（可以看下 `react-polyfills` 这个库中的[实现](https://github.com/kingback/react-polyfills/blob/d13438f41d8fbe48f869234d446fb1fb84d7ec93/packages/universal-polyfill-hooks/src/dispatcher.js#L110)）。
+
+## 常见的应用场景
+大体上就是一些需要通过命令式控制子组件的业务场景，比如：
+* 需要**主动**使 `input` 获取焦点
+* 需要**主动**关闭或开启 `dialog` 或 `loading` 组件
+* 需要**主动**校验 `form`
+* 需要**主动**调用较封闭的外部组件，比如富文本、地图等暴露的 API
+
+可以发现，**主动**是这些场景共同的特征，如果在你遇到的某些业务场景中，包含类似需求（如需要**主动**去完成某事）的时候，千万别忘记使用 `useImperativeHandle` 而是去重复造轮子或者使用 watch 这种反模式了。

@@ -1,0 +1,13 @@
+.wrapper {
+  flex: 1 0 64px;
+  text-align: center;
+}
+
+.wrapper img {
+  margin: 0 auto;
+  border-radius: 6px;
+}
+
+.wrapper span {
+  font-size: 14px;
+}

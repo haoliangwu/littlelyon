@@ -1,0 +1,244 @@
+---
+title: 为什么 Nextjs 14 要推出 Server Actions
+publishDate: 2024/02/26
+excerpt: 关于 React 为什么在 18 版本当中，引入若干使用频率很低的 hooks，如 useId、useMutableSource，以及为什么在 19 版本中，又推出围绕 form 的若干 hooks，如 useOptimistic、useFormStatus，Server Actions 同时也是 Nextjs 14 中推出的主要特性，这个特性到底要解决什么问题呢？
+tags: 
+  - react
+  - nextjs
+author: You
+isFeatured: true
+---
+import ImagePreviewer from "../../components/react/ImagePreviewer";
+
+## 什么是 Server Actions
+Server Actions 的概念虽然听起来高大上，但实际上它的本质，就是一个在服务端执行的**异步**函数，这里要着重强调异步，这是因为这类函数内的逻辑，通常与表单提及、更新状态等逻辑相关，而这些逻辑的执行机制，往往是异步的。
+
+除此之外，Server Actions 还有一个特点在于，虽然它本身是在服务端执行，但它的调用者是同时包含服务端和客户端的，之所以这样设计，我认为是为了在最大程度上，追求代码的可复用性，同时针对异步逻辑的实现方式，基于 html 中 form 提供一种通用的解决方案。
+
+## 为什么 Nextjs 需要 Server Actions
+让我们先来回顾下 Nextjs 不同版本所解决的主要问题：
+* Nextjs 12（以及之前）: 主要是按照 SSR、SSG 的渲染方式，使用 React 渲染页面，同时还要兼顾 [Web Vitals](https://github.com/GoogleChrome/web-vitals) 中的若干指标，比如 `FCP`, `CLS` 以及 `LCP` 等关键指标。 
+* Nextjs 13: 主要推出了 App Router 路由模型，同时引入了 RSC（React Server Component）的组件渲染方式，在这个基础上，Next.js 的页面渲染颗粒度，从页面层级细化到了组件，在进一步提升 Web Vitals 指标的同时，还解锁了很多在 Nextjs 12 中无法实现的功能，比如 Parallel Routes，即在同一个路由下，渲染两个具有相同布局的页面，而页面本身是完全解耦的。
+
+这里重点说一下 RSC，RSC 想要实现的效果，是进一步将 React 组件细分为了依赖**数据源**（data source）和依赖**状态**（state）两种类型：
+* 依赖数据源：这类组件在实践中，通常的实现逻辑就是异步获取数据，然后渲染，这类组件 Nextjs 建议通过 RSC 来实现
+* 依赖状态：这类组件在实践中，往往包含一些局部状态，比如是否登录、搜索关键字等客户端状态，由于状态的变更，本身依赖于用户的操作，这类组件我们应当使用 RCC（React Client Component），通常就是我们习以为常的 `prop`、`state` 这些概念
+
+可以发现，Nextjs 发展到 13 版本的主要特性，都是围绕数据如何渲染开展的，而 Nextjs 14 则着手准备解决另外一个角度的问题，即**如何将客户端的状态，提交到服务端**？放到现在这个时间节点，大家肯定会觉得这个问题简直不要太简单，就是通过 ajax 调 api 呗，而且我们现在不就是这样来做的吗？
+
+没错，但是假如客户端禁用了 js 呢？因为调用 api 的逻辑依赖 js 本身，页面将变得无法正常工作。
+
+当然你可能会继续说，多数场景下这属于 edge case，哪个用户会主动禁用 js 呢？
+
+也确实如此，但这只是其中一种情况而已，试想一下，在网络带宽十分恶劣的情况下，加载使用 SSR 渲染的 html 虽然可以有效提升 FCP 指标，但是页面仍然有非常大的概率，阻塞在加载 js 资源当中，那么假如调用接口的逻辑也包含在这些 js 资源中，即使客户端没有禁用 js，页面仍然是无法对用户当前的操作做出任何响应的。
+
+因此，通过 ajax 调用 api 的方式，可以满足绝大部分场景，但对于追求极致用户体验的场景下，还不够。
+
+## Server Actions 的运作原理
+根据上文可知，是否存在一种不依赖于 js，还能够向服务端提交数据的方式呢？答案是肯定的，即 `form`，比如：
+```html
+<form action="/login_action.php" method="post">
+  <label for="uname">Username:</label>
+  <input type="text" id="uname" name="uname"><br><br>
+  <label for="pwd">Password:</label>
+  <input type="password" id="pwd" name="pwd"><br><br>
+  <button type="submit">Submit</button>
+</form>
+```
+
+这就实现了一个极简的用于完成 login 功能的表单，当点击 Submit 按钮时，会提交 `uname` 和 `pwd` 字段至服务端的 `login_action.php` 端点中，从而触发后续逻辑。
+
+ajax 之所以在后来作为较常用的异步数据提交方式，是因为 `form` 在提交时，页面会进行跳转，这种页面跳转交互，在现在追求极致 UX 的情况下，是要尽可能避免的。
+
+那么有没有可能我们即可以使用 `form`，又能够不进行页面跳转呢？答案仍然是肯定的，这也是 React Labs 之前在博客中分享的一个[主题](https://react.dev/blog/2024/02/15/react-labs-what-we-have-been-working-on-february-2024#actions)，即推出一个被称作 React Actions 的概念来实现这种异步逻辑调用的模式。 
+
+React Actions 简单说，就是尝试将 `form` 的 `action` 属性所支持的数据类型，从 `url` 扩展到了函数，函数可以在服务端执行，也可以在客户端执行，如果是服务端执行，就是包含 `use server` 的异步函数，叫作 `server action`，如果是客户端执行，就是一个普通的异步函数（其实同步也行），叫作 `client action`。
+
+Server Actions 是 Nextjs 基于 React Actions 来实现的，只不过它始终运行于服务端，它始终是 `server action`（就和它的名字一样）。
+
+## Server Actions 示例
+示例代码仓库在[这里](https://github.com/haoliangwu-sbi-dalian/nextjs-server-actions-example)。
+
+示例中，简单通过 Server Actions 实现了一个登录表单，并在服务端持久化已登录的用户，并在客户端将数据以列表形式渲染，如图：
+<ImagePreviewer client:load src = "/images/why-server-actions/img1.png" alt = "login form example" />
+<ImagePreviewer client:load src = "/images/why-server-actions/img2.png" alt = "login form example(error)" />
+
+这里针对示例本身，通过注释的形式进行说明。
+
+### Page 组件
+```tsx
+// 平平无奇的布局组件，它的路由路径是根路径（/）
+async function Home() {
+  return (
+    <main className="flex min-h-screen flex-col items-center gap-4 p-24">
+      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
+        <OnlineUsers />
+      </div>
+      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
+        <LoginForm />
+      </div>
+    </main>
+  );
+}
+```
+
+### OnlineUsers 组件
+```tsx
+import { userStore } from "@/stores";
+
+// 它是一个 RSC，因此可以通过 async/await 异步获取数据
+const OnlineUsers = async () => {
+  const users = await userStore.listUsers();
+
+  return users.length > 0 ? (
+    <div>
+      Online Users:
+      <ul>
+        {users.map((u) => (
+          <li key={u.username}>{u.username}</li>
+        ))}
+      </ul>
+    </div>
+  ) : (
+    <div>No Online Users</div>
+  );
+};
+```
+
+### LoginForm 组件
+```tsx
+'use client'
+
+import { useFormState } from "react-dom";
+import { login } from "@/actions";
+
+// 由于这里我们期望使用 useFormState 来获取 Server Actions 返回的数据
+// 需要将该组件声明为 RCC，否则 Nextjs 会提示错误
+const LoginForm = () => {
+  // login Action 会作为参数传给 useFormState，第二个参数是 state 的初始状态
+  // state 是用于展示提示信息的状态，如表单校验后的错误信息
+  const [state, formAction] = useFormState(login, undefined);
+
+  return (
+    // 平平无奇的表单，值得注意的是 input 的 name 的值
+    // 这些值和 FormData 中的 key 值相对应
+    <form action={formAction}>
+      <label htmlFor="uname">Username:</label>
+      <input type="text" id="uname" name="uname" />
+      <label className="ml-4" htmlFor="pwd">
+        Password:
+      </label>
+      <input type="password" id="pwd" name="pwd" />
+      <br />
+      <br />
+      <button
+        type="submit"
+        className="border-2 border-solid border-gray-500 p-2 rounded-sm"
+      >
+        Submit
+      </button>
+      <span className="ml-4 text-red-500">{state?.msg}</span>
+    </form>
+  );
+};
+```
+
+### Server Actions Login 函数
+```ts
+// 这里声明 "use server" 指令，代表该文件下的所有异步函数均是 Server Actions
+"use server";
+
+import { revalidatePath } from "next/cache";
+
+import { userStore } from "@/stores";
+
+// login Action 的实现逻辑，简单的对 uname 和 pwd 表单项进行了校验，并返回错误信息
+// 它的返回值对应上文中 useFormState 返回的 state 状态
+const login = async (prevState: any, formData: FormData) => {
+  const uname = formData.get("uname");
+
+  if (!uname) return { msg: "username is required" };
+
+  const pwd = formData.get("pwd") as string;
+
+  if (!pwd) return { msg: "password is required" };
+  if (pwd.length < 8) return { msg: "password length is too short" };
+
+  try {
+    await userStore.login({
+      username: uname.toString(),
+    });
+  } catch (err) {
+    return {
+      msg: (err as Error).message,
+    };
+  }
+
+  // 如果登录成功，则会使用 revalidatePath 来强制根路由（/）页面刷新缓存
+  revalidatePath("/");
+
+  return {
+    msg: "success",
+  };
+};
+```
+
+### 用于模拟持久层的 Store 对象
+```ts
+import fs from "node:fs/promises";
+import path from "node:path";
+
+interface User {
+  username: string;
+}
+
+// 平平无奇的持久层实现，通过文件来持久化用户数据
+// 值得一提的是，如果使用内存的方式来储存数据，会产生数据不一致问题
+// 原因在于组件渲染和 Server Actions 调用的内存是彼此独立的
+class UserStore {
+  private db = path.resolve(process.cwd(), `src/stores/users.json`);
+
+  async login(user: User) {
+    const users = await this.listUsers();
+
+    if (!users.find((u) => u.username === user.username)) {
+      users.push(user);
+      await fs.writeFile(this.db, JSON.stringify(users), "utf-8");
+    } else {
+      throw new Error("duplicated user");
+    }
+  }
+
+  async listUsers(): Promise<User[]> {
+    const rawUsers = await fs.readFile(this.db, "utf-8");
+
+    return JSON.parse(rawUsers);
+  }
+}
+```
+
+### 表单请求
+Server Actions 的请求头部，可以发现 `Content-Type` 是 `multipart/form-data`，而 `Accept` 是 `text/x-component`，前者对应 `FormData`，后者对应 RSC 协议。
+
+<ImagePreviewer client:load src = "/images/why-server-actions/img3.png" alt = "form request headers" />
+
+表单请求的 payload 就是 FormData，其中的值有些是可以看懂的，有些不太容易看懂，这些看不懂的与 RSC 协议有关，关于 RSC 协议，会在以后的文章中进行归纳和分享，当前就把它当做一种用于在服务端和客户端之间，将与视图有关的状态，进行序列化传输的网络协议即可。
+<ImagePreviewer client:load src = "/images/why-server-actions/img4.png" alt = "form request payload" />
+
+### 表单响应
+Server Actions 的请求头部，可以发现 `Content-Type` 是 `text/x-component`，也是对应 RSC 协议。
+
+<ImagePreviewer client:load src = "/images/why-server-actions/img5.png" alt = "form response headers" />
+
+表单响应的 payload 就是 RSC 字符流，客户端接受到字符流后，会以 Stream 的方式，对视图状态进行更新。
+<ImagePreviewer client:load src = "/images/why-server-actions/img6.png" alt = "form response payload" />
+
+## React 相关的 hooks
+为了使 Server Actions 更好地运作，React 在 Canary 版本加入了四个 hook 来支持它，如下：
+
+* [useTransition](https://react.dev/reference/react/useTransition): 用于异步更新状态（不会阻塞页面的响应）
+* [useOptimistic](https://react.dev/reference/react/useOptimistic): 以乐观条件更新状态
+* [useFormState](https://react.dev/reference/react-dom/hooks/useFormState): 用于根据 React Action 的返回结果，更新状态
+* [useFormStatus](https://react.dev/reference/react-dom/hooks/useFormStatus): 获取表单提交的最新提交状态
+
+受限于篇幅，这篇文章就不再对这些 hook 进行讲解，会在之后的文章是逐个分析，并给出最佳实践和采坑指南。

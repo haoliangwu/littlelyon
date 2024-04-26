@@ -1,0 +1,149 @@
+---
+title: The Option of FP
+publishDate: 2023/06/16
+excerpt: Option 是一种函数式编程中的数据类型，表示一个可能存在或不存在的值。它可以是 Some(存在值) 或 None(不存在值)，用于处理可能出现空值的情况，提供了安全的值操作和错误处理。
+tags: 
+  - fp
+author: You
+---
+
+## 什么是 Option
+
+在函数式编程中，Option（也称为 Maybe）是一种特定的数据类型，用于处理可能不存在的值。在操作一个变量时，我们通常不知道它是否存在。使用 Option 类型时，我们可以显式地表示一个值**存在**或**不存在**，从而更好地处理这种情况。<br />Option 类型的实现通常是一个容器，它可以包含一个具体的值或包含一个表示不存在任何值的常量。<br />Option 类型的实例可以理解为一个不为空（Some）或空（None）的容器。如果一个值存在，那么它就可以被封装到 Some 类型中；如果不存在，那么它就封装到 None 类型中。<br />使用 Option 类型的好处在于它可以防止程序崩溃。例如，如果程序试图访问一个不存在的值，就会返回 None 类型，这样程序就可以判断这种情况并进行相应的处理。同时，Option 类型还可以使代码更加具有表现力和明确性。
+
+### Some
+
+`Some`的语义是表示一个可能为空的值一定存在。
+
+### None
+
+`None`的语义是表示一个可能为空的值一定**不**存在。
+
+注意，Option 在语义上，和`if`（而不是`if..else`）是相近的，我们更在意 Option 为 Some 的情况，针对其他情况，则统一使用 None 来代替。<br />如果想要表达类似`if..else`或者`if..elseif..else`的语义，我们则应该使用 Either，它是另外一个常用的 Type Class，我们在之后学习它。
+
+## 最佳实践
+
+### 运行时更健壮
+
+在 typescript 中，当访问对象引用可能为空的属性时，我们通常使用 optional operator（`?.`）来避免空指针异常。optional operator 是 typescript 在编译时的所支持的语法，这意味着即使 typescript 会在编译时报错，但开发者仍然有很多种途径“欺骗”编译器，比如可以使用类型断言（如`any`、`!.`和`as`）或干脆使用`@ts-ignore`注释。<br />虽然大多数情况，“欺骗“编译器是开发者刻意为之，但这并不意味着这些不健壮的代码永远不会发生问题，这种类型的代码越多，随着时间推移或需求变更，之前正常运行的代码，发生运行时异常的可能性越大。<br />而 Option 则是运行时所创建的对象，是基于 javascript 的，它提供的健壮性是稳定的，不会因为编译时使用哪些语法而发生改变。虽然创建对象在运行时本身会造成额外的开销，但这些开销对比它所带来的收益不值一提。
+
+### 类型系统更一致
+
+在使用 typescript 的某些场景下，我们除了会在不会发生非空属性访问的场景下“欺骗”编译器，我们也会在声明更简明的类型系统上“欺骗”编译器，如使用`react-query`时，封装自定义 hook 的场景：
+
+```typescript
+export default function useCryptoAssets() {
+  const query = useQuery([QUERY_KEY], () =>
+    axiosClient
+      .get<CryptoAsset[]>("/dictionary/asset/all", {})
+      .then((res) => res.data)
+  );
+
+  // 这里并不是为了解决运行时异常
+  // 而是为了 useCryptoAssets 返回的 query 对象中的
+  // data 类型是 CryptoAsset[] 而非 CryptoAsset[] | undefine
+  if (!query.data) {
+    throw new InvalidQueryError(QUERY_KEY);
+  }
+
+  return { query };
+}
+```
+
+`query.data`的类型之所以一定是`CryptoAsset[]`，是因为我们通常将`react-query`与`React.Suspense`配合使用。<br />`query.data`为空的场景 99% 是数据正在获取中，这时页面会渲染提供给`React.Suspense`的`fallback`中的模板，剩下 1% 的场景是开发者显式地设置了空值，之所以几率十分低，是因为该行为在封装请求接口数据的自定义 hook 显得没有意义。<br />这种写法还有一个缺点是会打破`useQuery`的一些预设行为，比如：
+
+- 当我们对`useQuery`提供初始数据状态`initialData`参数时，可能会发生异常，比如显式的设置`initialDate`为`false`
+- 还有，我们无法将`useQuery`的`enabled`参数设置为`false`，虽然这会禁用`useQuery`的执行，但因为`query.data`为空，该 hook 仍然会抛出异常，某种程度可以算作一种 positive false（误判）
+  - 针对 positive false 的情况，虽然我们可以通过 `if(enabled && !query.data)`来解决，但这会破坏 typescript 的类型推断，使`query.data`的类型重新变为`CryptoAsset[] | undefine`
+- 我们无法快速将该自定义 hook 迁移至不使用`React.Suspense`的项目中
+
+`react-query`在设计上，本身与 Option 是类似的，`query`对象本身提供若干属性来判定当前获取数据的状态是什么，如`isFetched`、`isLoading`等等，因此，更好地方式就是不要使用这种方式来追求类型系统的一致性。
+
+### 依赖注入更一致
+
+在 react 中，体现依赖注入模式的特性是`React.Context`，因此我们经常会遇到这个问题，当要注入的状态可能为空时，如何声明传递给`React.createContext`的泛型参数呢？很简单，我们会把该状态的接口属性声明为可选的，比如：
+
+```typescript
+interface RtdsClientContext {
+  // 这里需要声明为可选属性
+  client?: RtdsClient;
+}
+
+export const Context = createContext<RtdsClientContext>({
+  // 然后这里才可以设置为 undefined
+  client: undefined,
+});
+```
+
+但这样会导致另外一个问题，即与上面“类烈系统更一致”类似的问题，依赖该状态的所有组件，typescript 在做类型推断时，均会把它当做一个可能为空的状态，但实际上注入的时机往往都是一次性的，且在 client 初始化时，依赖该 client 的组件都不会渲染，因此我们就会开始使用各种方式来“欺骗”编译器。<br />实际上，这里使用 Option 可以一举两得地解决问题，如下：
+
+```typescript
+interface RtdsClientContext {
+  // 这里声明为 Maybe
+  client: Maybe<RtdsClient>;
+}
+
+export const Context = createContext<RtdsClientContext>({
+  // 这里将初始值设置为 None 即可
+  client: Maybe.None(),
+});
+```
+
+为什么是一举两得呢，原因是：
+
+- 在类型系统上，无论是提供者，还是消费者，类型推断均会得到一致的结果，即 Maybe
+- 由于运行时的 client 始终为非空对象，因此永远不会抛出空指针异常
+
+### 函数式编程
+
+虽然`react-query`在设计上，和 Option 本身有相似之处，但它在可扩展性上是无法和函数式编程相对比的，同时它更专注于数据获取的场景，而 Option 则更通用。<br />由于 Option 是一个实现了若干 Type Class 的实例，它实现了相应 Type Class 所要求的接口方法，如`map`、`chain`、`ap`、`reduce`等等，[详见](https://gcanti.github.io/fp-ts/modules/Option.ts.html)。使用这些方法，可以按照引用透明的方式，来封装业务逻辑，使组织代码的方式非常灵活。<br />这里引用官方文档的例子：
+
+```typescript
+import * as O from "fp-ts/Option";
+import { pipe } from "fp-ts/function";
+
+const double = (n: number): number => n * 2;
+
+export const imperative = (as: ReadonlyArray<number>): string => {
+  const head = (as: ReadonlyArray<number>): number => {
+    if (as.length === 0) {
+      throw new Error();
+    }
+    return as[0];
+  };
+  const inverse = (n: number): number => {
+    if (n === 0) {
+      throw new Error();
+    }
+    return 1 / n;
+  };
+  try {
+    return `Result is ${inverse(double(head(as)))}`;
+  } catch (e) {
+    return "no result";
+  }
+};
+
+export const functional = (as: ReadonlyArray<number>): string => {
+  const head = <A>(as: ReadonlyArray<A>): O.Option<A> =>
+    as.length === 0 ? O.none : O.some(as[0]);
+  const inverse = (n: number): O.Option<number> =>
+    n === 0 ? O.none : O.some(1 / n);
+  return pipe(
+    as,
+    head,
+    O.map(double),
+    O.flatMap(inverse),
+    O.match(
+      () => "no result", // onNone handler
+      (head) => `Result is ${head}` // onSome handler
+    )
+  );
+};
+
+assert.deepStrictEqual(imperative([1, 2, 3]), functional([1, 2, 3]));
+assert.deepStrictEqual(imperative([]), functional([]));
+assert.deepStrictEqual(imperative([0]), functional([0]));
+```
+
+在上面的例子中，函数式的写法，语义上更简洁，代码组织结构更清晰，更重要的是，它是引用透明的。

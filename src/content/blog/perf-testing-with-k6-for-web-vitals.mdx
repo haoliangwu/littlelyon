@@ -1,0 +1,238 @@
+---
+title: Performance Testing with K6 for Web Vitals
+publishDate: 2024/03/13
+excerpt: 介绍如何通过 k6 来对系统在 Web Vitals 规范指导下，进行性能测试。
+tags: 
+  - aws
+author: You
+---
+import ImagePreviewer from '../../components/react/ImagePreviewer'
+
+## 写在前面
+在 [Performance Testing with K6](https://www.littlelyon.com/posts/perf-testing-with-k6) 这篇文章中，我们简单分享了如何利用前端工程化以及借鉴自动化测试中的 PO 思想，使用 k6 针对基于 Http 网络协议的系统进行 e2e 性能测试。
+
+那么，如果我们将性能测试的场景局限于前端页面本身，即针对 Web Vitals 指标来进行测试，又该如何做呢？
+
+这里首先简单介绍下 [Web Vitals](https://web.dev/articles/vitals)，它是 Google 的一项提案，旨在为 Web 应用的性能参考指标提供统一指导，这些指标对于应用是否可以针对终端用户提供出色的用户体验至关重要。
+
+## k6/browser
+要针对 Web Vitals 进行测试，需要用到 [`k6/browser`](https://grafana.com/docs/k6/latest/javascript-api/k6-experimental/browser/) 这个模块，该默认仍然处于实验性质，因此它属于 `k6/experimental` 包当中。
+
+虽然如此，我们已经可以直接在 k6 的 `0.43.0` 以上版本中，直接使用它，而不是通过 `xk6-browser` 这个独立的插件。
+
+`k6/browser` 的实现原理，主要借鉴与 `playwright`，`playwright` 是一个基于 nodejs 环境，来进行 e2e 测试的框架，它实现了若干简单易用的 API 来控制浏览器。类似地，虽然 `k6/browser` 借鉴了 `playwright`，由于它本身的运行时并不是 nodejs，因此一些 API 和 `playwright` 是不一样的，但在语义上相同。
+
+## testcase 的实现
+参造之前的测试用例模式，我们可以抽象出如下 testcase:
+```ts
+// browser.test.ts
+import exec from 'k6/execution'
+
+import { resolveUser } from './utils'
+import scenario from './browser.scenario'
+
+interface SetupFixture {}
+
+export const options = {
+  scenarios: {
+    browser: {
+      executor: 'per-vu-iterations',
+      options: {
+        browser: {
+          type: 'chromium',
+        },
+      },
+      iterations: __ENV.SCENARIO_K6_ITERATIONS ?? 99999999,
+      vus: __ENV.SCENARIO_K6_VUS ?? 5,
+      maxDuration: __ENV.SCENARIO_K6_MAX_DURATION ?? '10s',
+    },
+  },
+  thresholds: {
+    checks: ['rate==1.0'],
+  },
+}
+
+export default async function (setupFixture: SetupFixture = {}) {
+  const user = resolveUser()
+
+  if (!user) {
+    exec.test.abort(`abort the iteration because the invalid user`)
+  }
+
+  if (typeof __ENV.ARG1 !== 'string') {
+    exec.test.abort(
+      `please declare __ENV.ARG1 as scenario function name, it is required`
+    )
+  }
+
+  const scenarioName = String(__ENV.ARG1)
+
+  let params = {}
+
+  if (typeof __ENV.ARG2 === 'string' && __ENV.ARG2.length > 0) {
+    try {
+      params = JSON.parse(`${__ENV.ARG2}`)
+    } catch (err) {
+      exec.test.abort(
+        `abort the iteration because invalid JSON string for __ENV.ARG2`
+      )
+    }
+  }
+
+  const handler = scenario[scenarioName]
+
+  if (typeof handler !== 'function') {
+    exec.test.abort(`the scenario ${scenarioName} is not supported yet`)
+  }
+
+  await handler({
+    ...params,
+    fixture: setupFixture,
+  })
+}
+
+export function setup(): SetupFixture {
+  if (!__ENV.ARG4) return {}
+
+  const scenarioName = String(__ENV.ARG3)
+
+  let params = {}
+
+  if (typeof __ENV.ARG5 === 'string' && __ENV.ARG5.length > 0) {
+    try {
+      params = JSON.parse(`${__ENV.ARG4}`)
+    } catch (err) {
+      exec.test.abort(
+        `abort the iteration because invalid JSON string for __ENV.ARG4`
+      )
+    }
+  }
+
+  const handler = scenario.setup[scenarioName]
+
+  if (typeof handler !== 'function') {
+    exec.test.abort(`the setup scenario ${scenarioName} is not supported yet`)
+  }
+
+  return handler({
+    ...params,
+  })
+}
+```
+
+可以发现，其实现细节和 `singleton.test.ts` 大同小异，不同的地方在于 k6 执行用例的配置，是通过 `scenarios` 属性来描述的。
+
+实际上，不论是 `vus` 或 `duration`，还是 `stages`，它们其实都是 `scenarios` 的语法糖，它们等价于声明不同的 `executor`，如下：
+* `shared-iterations`：固定数量的 vus 共通执行固定次数的 iteration
+* `per-vu-iterations`：每个 vus 独立执行固定次数的 iteration
+* `constant-vus`：固定数量的 vus 在特定时间内，尽可能多的执行 iteration
+* `ramping-vus`：**不**固定数量的 vus 在特定时间内，尽可能多的执行 iteration。
+* `constant-arrival-rate`：固定次数的 iteration 在特定时间内执行（哪怕时间不够）
+* `ramping-arrival-rate`：**不**固定次数的 iteration 在特定时间内执行（哪怕时间不够）
+* `externally-controlled`：控制器模式，运行时的扩容状态由 k6 restful api 或者 cli 进行控制
+
+## scenario 的实现
+```ts
+// browser.scenario.ts
+import { check } from 'k6'
+import { browser } from 'k6/experimental/browser'
+
+import { resolveFoMetadata, resolveHost } from './utils'
+
+const hosts = resolveHost()
+const foMetadata = resolveFoMetadata()
+
+const login = async (params = {}) => {
+  const page = browser.newPage()
+
+  try {
+    await page.goto(hosts.FO_WEB + '/ja/login', {
+      waitUntil: 'networkidle',
+    })
+  } finally {
+    page.close()
+  }
+}
+
+const home = async (params = {}) => {
+  const page = browser.newPage()
+
+  try {
+    await page.goto(hosts.FO_WEB + '/ja', {
+      waitUntil: 'networkidle',
+    })
+
+    const $btn = page.locator('.btn.primary.md')
+
+    check($btn, {
+      'login btn is visible': l => l.isVisible(),
+    })
+  } finally {
+    page.close()
+  }
+}
+
+export default {
+  home,
+  setup: {
+    login
+  },
+}
+```
+
+`scenario` 的实现也是类似的，值得一提的是，由于 `k6/browser` 提供的一些方法的返回类型是 `Promise`，因此这里使用 `async/await` 语法来提高代码可读性。
+
+但在使用 `async/await` 语法时，我发现如果最外层的 `async` 方法不指定参数默认值（即 `params={}`）的话，k6 在执行用例时会报错，如下：
+<ImagePreviewer client:load src="/images/perf-testing-with-k6/img4.png" alt="async/await error for k6/browser" />
+
+经过调查，我发现原因在于通过 esbuild 编译的 `test.js` 生成的代码，其中包含这样的代码段：
+```js
+// 省略若干代码...
+
+var __async = (__this, __arguments, generator) => {
+  return new Promise((resolve, reject) => {
+    var fulfilled = (value) => {
+      try {
+        step(generator.next(value));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    var rejected = (value) => {
+      try {
+        step(generator.throw(value));
+      } catch (e) {
+        reject(e);
+      }
+    };
+    var step = (x) => x.done ? resolve(x.value) : Promise.resolve(x.value).then(fulfilled, rejected);
+    step((generator = generator.apply(__this, __arguments)).next());
+  });
+};
+
+function browser_test() {
+  // 关键在于这里，第二个参数是 null
+  return __async(this, null, function* () {
+    // 省略若干代码...
+  });
+}
+```
+
+`__async` 根据命名可知，它是 esbuild 编译时使用的工具函数，其内部实现了 `async/await` 的逻辑，问题主要因为其在调用时，第二个参数传递了 `null`，但传递 `null` 的行为本身不是问题，根本问题在于 k6 运行时，因为当我将浏览器或者 nodejs 作为运行时执行类似的脚本时，错误就消失了。
+
+解决它的办法也很简单，就是不要传递 `null` 参数就好，即当参数为空时，使用 `params={}` 来对参数赋予一个默认值。
+
+## 指标报告
+测试报告大概如下图所示，可以发现常见的 Web Vitals 指标都已经汇总出来了：
+<ImagePreviewer client:load src="/images/perf-testing-with-k6/img5.png" alt="perf report of k6/browser" />
+
+## 最佳实践
+### 使用 networkidle 以包含非阻塞的 Http 请求
+当前 SSR 已经成为了前端渲染的主流方式，如果要包含类似 API 调用或非阻塞静态资源的加载请求的性能指标，请声明 `networkidle` 参数，如下：
+```ts
+await page.goto(hosts.FO_WEB + '/ja', {
+  waitUntil: 'networkidle',
+})
+```
+
+但要小心，如果页面存在 polling 或者基于长连接，使用该选项则会使检测性能指标的过程永远无法停止，请根据实际情况酌情使用。

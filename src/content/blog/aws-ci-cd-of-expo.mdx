@@ -1,0 +1,59 @@
+---
+title: A Practical Summary of AWS CI/CD for EXPO
+publishDate: 2024/04/12
+excerpt: 在 EXPO 项目中，关于使用 CodeBuild/CodeDeploy/CodePipeline 等系列服务实现 CI/CD 的实战经验总结。
+tags:
+    - aws
+author: You
+---
+import ImagePreviewer from '../../components/react/ImagePreviewer'
+
+## 写在前面
+在 AWS 中，关于实现 CI/CD（持续集成/持续交付）的服务包括以下几个：
+* AWS CodeCommit：AWS CodeCommit 是一项托管的 Git 存储库服务，用于存储应用程序源代码和其他开发资产。开发团队可以使用 CodeCommit 存储、管理和协作开发项目的代码。
+* AWS CodeBuild：AWS CodeBuild 是一项托管的构建服务，用于自动化构建、测试和打包应用程序代码。开发团队可以使用 CodeBuild 在云中构建和测试应用程序，以便快速交付高质量的软件。
+* AWS CodeDeploy：AWS CodeDeploy 是一项部署服务，用于自动化应用程序的部署到各种计算环境，包括 EC2 实例、Lambda 函数、ECS 容器等。CodeDeploy 可以帮助开发团队实现快速、可靠的应用程序部署。
+* AWS CodePipeline：AWS CodePipeline 是一项持续交付服务，用于自动化构建、测试和部署工作流程。开发团队可以使用 CodePipeline 创建自定义的 CI/CD 流水线，将不同阶段的操作连接起来，实现端到端的持续交付流程。
+
+下面以案例实现的角度，分别阐述在 EXPO 项目中，是怎样使用这些服务（除了 AWS CodeCommit，因为代码托管使用的 Github，但会介绍如何集成 Github）。
+
+## 代码托管
+由于 EXPO 项目使用 Github 进行代码托管而非 CodeCommit，因此需要将 Github 作为 Repo 源集成至整个 CI/CD 体系。
+
+AWS 可以通过 AWS CodeStar 服务将 Github 作为 Repo Provider 集成至 AWS 生态中，在创建 Repo Provider 实例时，需要拥有 Github Owner 的权限创建，因为页面会重定向至 Github 进行 OAuth 流程以及一系列授权操作。
+
+授权完成后，该 Repo Provider 会通过 GitHub Webhook 触发的事件接收到 Repo 代码变更的通知，之后它再将该事件分发给它的订阅者，比如 CodeBuild 或者 CodePipeline。
+
+## 持续集成
+AWS 中用于提供 CI 服务的 Provider 是 CodeBuild，它是一项 Serverless 服务，通过声明 `buildspec.yml` 文件来控制 CodeBuild Runner 执行 CI 任务，常见任务如下：
+* 执行单元测试、e2e 测试、性能测试
+* 构建 Docker 镜像，并上传至 ECR
+* 生成静态资源，并上传至 S3
+
+虽然 CodeBuild 本身用于实现 CI 服务，但在 development 场景下，也可以承担实现 CD 服务的职责，EXPO 项目就是这样来使用 CodeBuild 的，因为开发环境下的 CD 任务触发较频繁，如果使用 CodePipeline 会降低持续集成的效率，虽然牺牲掉了部分可用性，但对于小型项目拿这部分可用性来换取更低的运维成本和更高的效率非常适合的。
+
+## 持续部署
+AWS 中用于提供 CD 服务的 Provider 是 CodeDeploy，它也是一项 Serverless 服务，通过声明 `appspec.yml` 来执行 CD 任务，常见任务如下：
+* ECS：除了 `appspec.yml` 之外，还需要提供 `imageDetail.json` 和 `taskdef.json` 配置文件
+* Lambda:  仅需 `appspec.yml`
+
+CodeDeploy 最大的特点在于，部署方式也通过 Provider 进行了抽象，比如针对 ECS 的部署，即使用滚动策略，也可使用蓝绿部署策略，同时部署策略与 CodeDeploy Deployment Group 绑定，而非 CodeDeploy 项目本身，这提供了很高的灵活性。
+
+## 流水线
+Pipeline（流水线）在 AWS 中是通过 CodePipeline 来实现的，CodePipeline 本身并不提供额外的流水线服务，它是通过将 CodeStar、CodeBuild、CodeDeploy 等寄存服务以 Provider 的形式集成在一起来实现流水线服务：
+* CodeStar: 作为 Source Provider
+* CodeBuild：作为 CI Provider
+* CodeDeploy: 作为 CD Provider
+
+除此之外，CodePipeline 还支持其他类型的 Provider，比如
+* Approval Provider：用于实现审批操作
+* Notification Provider：触发通知
+* CloudFormation Provider: 执行 AWS CloudFormation 模板
+
+每个 Provider 都遵循单一职责原则，确保不同的 Provider 组合起来可以完成各种各样的逻辑。Provider 之间是通过遵循统一规范的 Artifacts 来传递产出物的，比如：
+* Source Provider 会将源码作为 Artifacts 传递给 CodeBuild
+* CodeBuild 构建 Docker Image 并上传至 ECR 后，会将包含镜像 Metadata 的 JSON 文件以 Artifacts 形式再传递给 CodeDeploy
+* CodeDeploy 获取该 JSON 文件，从 ECR 获取最新镜像，之后发布至 ECS
+
+## 整体架构图
+<ImagePreviewer client:load src="/images/aws-expo-summary/img8.png" alt="the arn of AWS CodeXXX"/>
