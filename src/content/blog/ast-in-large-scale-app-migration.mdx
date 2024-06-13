@@ -1,0 +1,545 @@
+---
+title: 使用 AST 迁移复杂前端项目的探索
+excerpt: 以 nuxt 2 迁移 nuxt 3 为项目背景，讨论如何利用 AST 与 Codemod 工具，解决在复杂前端项目的迁移过程中，遇到的若干痛点及问题。
+publishDate: 2024/06/14
+tags:
+  - js
+  - vue
+  - nuxt
+isFeatured: true
+seo:
+  image:
+    src: '/images/ast-in-large-scale-app-migration/img2.png'
+    alt: 使用 AST 迁移复杂前端项目的探索
+---
+
+import ImagePreviewer from '../../components/react/ImagePreviewer';
+
+## 写在前面
+
+也不知道为什么，每一次工作变动，所接手的第一个项目，都和项目迁移有关。这次也不例外，在 5 月初入职乐天之后，处理完杂七杂八的事情，第一个接手的项目是将一个大概有 5 年开发周期的 nuxt 2 前端项目，迁移到 nuxt 3 版本。
+
+## 项目迁移与“屎山”
+
+谈及项目迁移，尤其是复杂项目，很容易让人把它和“屎山”联系起来，而事实上也是如此，大多数规模较大的项目，往往都具备“屎山”的各种特征，比如：
+
+- 代码中充斥着各种不得已而为之的反模式，如满天飞的 `if..else` 以及副作用
+- 依赖库年久失修，比如项目使用的版本是 1.x 版本，社区版本可能早就 3.x 开外了，这个现象在前端开发中尤其常见
+- 代码的可复性、可维护性低，换另外一种形容方式就是，项目十分脆弱，牵一发而动全身
+- 项目具有一个需要持续运营的生产环境，这一点基本上是各种“屎山”越积越大的根本原因
+
+一开始我对接手“屎山”项目是非常排斥的，但经过这么多年的工作，我现在认为是否能与“屎山”代码和解，其实能反向证明一个软件工程师在解决问题时，心智模型的成熟程度（也可以算作我自己 PUA 自己吧）：
+
+- 不成熟的心智模型： 先对“屎山”代码及其之前的作者一顿抨击，并扬言自己可以以重构的方式，一揽子解决所有问题，balabala..(省略若干字)
+- 成熟的心智模型： 鄙视“屎山”，理解“屎山”，与“屎山”和解（不是成为“屎山”）
+
+其中最核心的区别在于解决问题的方式，但凡有过复杂项目开发经验的软件工程师，都知道对一个复杂项目进行重写的可能性，非技术原因才是决定性因素，除了技术能力之外，要考虑的因素非常多，同时所花费的成本也难以量化估计，大部分情况都是，不是不能重写，而是不敢重写、不愿重写。
+
+而我接手的这个项目，虽然不至于说它是一个“屎山”项目，但情况也不算太乐观，类似规模和场景的迁移工作我之前大概做过两次，基本上都是按照重写的方式来实施，这次虽然也可以这样做，但我认为还有其他的可能性可以尝试，因此经过调研，发现可以借用 AST 的概念来极大地提升迁移过程中的开发体验。
+
+## 如何衡量复杂前端项目
+
+对于复杂前端项目，我认为可以从以下几个维度参考：
+
+- 页面个数规模大于 100+
+- 组件个数（通用、业务组件都算）大于 500+
+- 使用了状态管理框架，并包含较复杂的逻辑
+- 项目类型为 To C 项目
+
+一个前端项目如果具备以上几点，基本上就可以认定它是一个复杂项目了。
+
+## 关于重写项目
+
+让我们先来重新审视“重写项目”这种解决方案。
+
+大多数场景下，为了说服管理层，我们往往会归纳关于重写项目可带来的若干优点，比如：
+
+- 可以偿还技术债
+- 可以更新技术栈
+- 极大的提升性能、可维护性、可读性
+- 有效提升开发效率
+- ...
+
+针对缺点可能往往只会用一句需要额外花费人力物力不了了之，但实际上，还有很多潜在的其他缺点和风险，比如：
+
+- 可能需要冻结代码，以保证重写项目可以平稳进行
+  - 这一点对于许多 To B 管理系统是能够容忍的，但对于已上线的 To C 项目，基本无法容忍
+- 重写的成功率是一个未知数，不可量化
+  - 很难以一种可量化的方式来衡量迁移成功率、进度以及影响范围
+- 迁移的过程不可复制，不具备幂等性
+  - 同一个人，对一个项目迁移两次，无法保证两次迁移的结果完全相同，这其中充满了随机性
+  - 那么问题来了，为什么要对一个项目进行二次迁移，这是因为迁移的过程可能会被一些客观因素中断或终止
+
+这些缺点和风险与项目的复杂性成正相关关系，即项目越复杂，重写的风险越高（好像说了句废话），核心的原因在于，这些缺点在简单的项目场景下，并不是不存在，只是因为项目足够简单，这些缺点产生的问题可以在很短的时间被解决，但在复杂场景下，由于无法在短时间内解决问题，这些问题会持续在重写过程中，蚕食重写的可能性，最终导致迁移失败。
+
+<ImagePreviewer client:load src="/images/ast-in-large-scale-app-migration/img1.png" alt="why migration of large-scale project is hard" />
+
+上图中的三个圆圈的含义分别是：
+
+- no tech debt（无技术债）: 表示项目的迁移完整程度，完美的状态是无任何技术负债
+- low cost（低成本）: 表示项目迁移所花费的时间，时间和成本越低越好
+- high tability（高稳定性）: 表示项目迁移后的稳定程度，越稳定代表迁移越成功
+
+可以发现，上述三者彼此无法同时满足，高稳定性肯定是优先考虑的，因此迁移项目的策略，通常会在无技术债和时间成本两者之前取舍，如果是偏向成本，则迁移策略偏向于重构或局部重写，如果是偏向无技术债，则策略偏向于完整重写。
+
+我认为，大部分的开发者都比较倾向于无技术债的完整重写策略的主要原因在于，别人的技术债不是我的技术债，因此无论是重构还是局部重写，某种程度上算是在替别人还债，这在心理上本身就是抗拒的，其次就是大部分项目的复杂程度，都不足以在完整重写策略之下，暴露无法解决问题。
+
+<ImagePreviewer client:load src="/images/ast-in-large-scale-app-migration/img3.png" alt="migration with manual works" />
+
+但这种策略对于 To C 下的项目基本无法实施，主要原因在于 To C 类型的项目的迭代周期通常非常短，同时冻结代码的成本也非常高。如上图所示，在迁移过程中，需求变更请求随时可能发生，开发者无法专注于迁移项目的工作，有时甚至会迫不得已的搁置迁移计划以对应紧急需求，随着项目发展，新代码势必会和已完成的迁移在代码层面形成冲突，同时开发者也会遗忘之前迁移工作中的若干细节，从而使迁移工作变成了不可能完成的任务。
+
+## AST 及 Codemod
+
+在 2024 年，我想 AST 的概念对于每个前端开发者应该都不在陌生，虽然在日常工作中，很少与它直接打交道，但现代前端开发已经无法脱离 `typescript`、`babel`、`eslint` 等工具，因此可以说我们的日常工作与 AST 息息相关。
+
+AST(Abstract Syntax Tree)，即抽象语法树，是一种用于表示源代码结构的树状数据结构。它将源代码分解成更小的、具有层次关系的节点，每个节点代表源代码中的一个语法结构。AST 是编译器和解释器在代码分析和转换过程中使用的核心数据结构，比如 [estree](https://github.com/estree/estree)，它是 javascript 生态中一个较流行的 AST 规范。
+
+由于 AST 是用来表达源码的一种数据结构，对于 AST 进行编辑等同于编辑源码，这也是各类生态工具的核心工作原理，如 `babel`, 它的工作原理即是将使用新语法的 js 代码转化为 AST ，再生成具备等价逻辑的、不使用新语法、兼容性更好的 js 代码。
+
+那么是否可以将 AST 应用到项目迁移和重写过程中呢？答案是肯定的，它叫作 Codemod，是一种用于大规模代码重构的工具或技术，特别适用于在大型代码库中进行批量修改。它通常用于自动化地执行重复性高、容易出错的代码更改任务。
+
+值得注意的是，Codemod 是这类迁移工具的统称，它内部的实现可以基于 AST，也可以基于其他实现方式，在 AST 方面的 Codemod 工具，js 生态中已经有很多尝试，常见的诸如 `recast` 或 `jscodeshift`，还有很多以某个框架为目标的 Codemod 工具，如 `react-codemod`、`angular-cli` 自带的 codemod 命令等。
+
+由于我手上的这个项目基于 `nuxt`，经过调研，我决定使用 [`vue-metamorph`](https://github.com/UnrefinedBrain/vue-metamorph) 这个 codemod 框架来实现项目迁移工作，之所以称它为框架，是因为它本身不提供任何 codemod 的实现，而是暴露了一系列工具方法，让开发者自行来实现 codemod 逻辑并以 plugin 的形式供它调用，它的作者还有一个项目叫作 [`vue-upgrade-tool`](https://github.com/UnrefinedBrain/vue-upgrade-tool)，其中实现了若干用于从 vue 2 迁移至 vue 3 的 codemod 实现。
+
+<ImagePreviewer client:load src="/images/ast-in-large-scale-app-migration/img2.png" alt="how codemod works" />
+
+使用 codemod 来迁移项目，最主要的优势包含以下几点：
+
+- 速度快，且不受人为主观因素（如粗心、精力等）影响
+- 迁移结果通过单元测试进行验证，以确保可靠性，同时迁移结果具备幂等性
+- 可以同时在相同特征（如使用相同的框架）的项目或不同版本中复用
+- 迁移的影响范围可量化，可以通过在 codemod 执行过程中，记录变更状态实现
+- 迁移的颗粒度具备原子性，可以和编程语言 AST 本身节点保持一样的颗粒度
+
+我认为前三条优点都是十分吸引人的，因为这些优点都是人工迁移项目时的痛点。
+
+由于 codemod 本身的逻辑可以通过单元测试进行覆盖和验证，因此可以引入 DDD（测试驱动开发）的开发模式来推进迁移工作，迁移工作的规划不在以项目代码本身为目标进行，而是以提前归纳和整理好的测试用例为目标，这样即使因对应紧急需求而暂时搁置了迁移计划，由于目标本身并非代码本身，它不会受到新代码的影响，同时测试用例也会提交到代码仓库中，在任何时间点通过测试用例都可以回忆起当时迁移的所有细节。
+
+## 实践案例
+
+这里以 nuxt 2 迁移 nuxt 3 为场景，以官方文档提供的迁移指南，简单列举几个实践案例。例子中关于 codemod 的代码，涉及一些 vue-metamorph 中内容，可以参考[这里](https://vue-metamorph.dev/guide/writing-codemods)了解。
+
+### [defineNuxtComponent](https://nuxt.com/docs/migration/meta#options-api)
+
+在 nuxt 3 中，虽然官方文档已推荐使用 Composable API 来实现，但 nuxt 2 的代码仍然是基于 Options API，因此，官方文档推荐针对所有使用 Options API 的组件，均通过 `defineNuxtComponent` 来定义，如下：
+
+迁移前：
+
+```vue
+// nuxt 2
+<script>
+export default {
+  // several properties with Options API
+};
+</script>
+```
+
+迁移后：
+
+```vue
+// nuxt 3
+<script>
+export default defineNuxtComponent({
+  // several properties with Options API
+});
+</script>
+```
+
+关于 vue-matemorph 插件的实现源码：
+
+```ts
+import { namedTypes as n } from 'ast-types';
+import { CodemodPlugin } from 'vue-metamorph';
+
+export const defineNuxtComponentCodemod: CodemodPlugin = {
+  type: 'codemod',
+  name: 'define-nuxt-component',
+  transform({ scriptASTs, sfcAST, utils: { traverseScriptAST, traverseTemplateAST, astHelpers, builders }, opts }) {
+    let transformCount = 0;
+
+    for (const scriptAST of scriptASTs) {
+      // 仅迁移 Options API
+      if (scriptAST.isScriptSetup) continue;
+
+      // 查找 AST 语法树中，是否已包含名称为 defineNuxtComponent 的 CallExpression
+      const transformed = astHelpers.findFirst(scriptAST, {
+        type: 'CallExpression',
+        callee: {
+          type: 'Identifier',
+          name: 'defineNuxtComponent'
+        }
+      });
+
+      // 如果存在，则跳过迁移逻辑
+      if (transformed) continue;
+
+      // 遍历 AST 语法树
+      traverseScriptAST(scriptAST, {
+        // 遍历 ExportDefaultDeclaration 节点的回调方法
+        visitExportDefaultDeclaration(path) {
+          // 当节点类型是 ObjectExpression 时，即声明 Options API 的默认导出对象
+          if (path.node.declaration.type === 'ObjectExpression') {
+            // 构建一个 名称为 defineNuxtComponent 的 CallExpression 节点
+            const defineNuxtComponentCallExpression = builders.callExpression(builders.identifier('defineNuxtComponent'), [path.node.declaration]);
+
+            // 变更 ObjectExpression 的 declaration 属性
+            path.node.declaration = defineNuxtComponentCallExpression;
+
+            transformCount++;
+          }
+
+          // 继续遍历
+          this.traverse(path);
+        }
+      });
+    }
+
+    return transformCount;
+  }
+};
+```
+
+### [async components](https://v3-migration.vuejs.org/breaking-changes/async-components.html)
+
+类似地，对于异步加载组件的方式，vue 3 也要求迁移至使用 `defineAsyncComponent` 来完成，如下：
+
+迁移前：
+
+```vue
+// nuxt 2
+<script>
+export default {
+  components: {
+    DatePicker: () => import('@/components/common/DatePicker')
+  }
+};
+</script>
+```
+
+迁移后：
+
+```vue
+// nuxt 3
+<script>
+export default {
+  components: {
+    DatePicker: defineAsyncComponent(() => import('@/components/common/DatePicker'))
+  }
+};
+</script>
+```
+
+关于 vue-matemorph 插件的实现源码：
+
+```ts
+import { namedTypes as n } from 'ast-types';
+import { CodemodPlugin } from 'vue-metamorph';
+
+export const asyncComponentCodemod: CodemodPlugin = {
+  type: 'codemod',
+  name: 'async-component',
+  transform({ scriptASTs, sfcAST, utils: { traverseScriptAST, traverseTemplateAST, builders, astHelpers }, opts }) {
+    let transformCount = 0;
+
+    for (const scriptAST of scriptASTs) {
+      // 仅迁移 Options API
+      if (scriptAST.isScriptSetup) continue;
+
+      // 查找 AST 语法树中，声明 Options API 的默认导出对象
+      const obj = astHelpers.findFirst(scriptAST, {
+        type: 'ObjectExpression'
+      });
+
+      if (obj) {
+        // 查找默认对象中的 components 属性
+        const componentsProperty = astHelpers.findFirst(obj, {
+          type: 'Property',
+          key: {
+            type: 'Identifier',
+            name: 'components'
+          }
+        });
+
+        if (componentsProperty) {
+          // 查找 components 中所有通过 import() 导入的组件
+          astHelpers
+            .findAll(componentsProperty, { type: 'Property' })
+            .filter((node) => {
+              return n.ArrowFunctionExpression.check(node.value);
+            })
+            .forEach((node) => {
+              // 构建名称为 defineAsyncComponent 的 CallExpression
+              // 并变更 Property 节点的 value 属性，它表示 : 号后的源码部分
+              node.value = builders.callExpression(builders.identifier('defineAsyncComponent'), [<n.ArrowFunctionExpression>node.value]);
+
+              transformCount++;
+            });
+        }
+      }
+    }
+
+    return transformCount;
+  }
+};
+```
+
+### [programmatic navigation](https://nuxt.com/docs/migration/pages-and-layouts#programmatic-navigation)
+
+在 nuxt 3 中，`vue-router` 的命令式跳转 API 也存在 breaking change，需要进行如下变更：
+
+迁移前：
+
+```vue
+// nuxt 2
+<template>
+  <button @click="$router.push('/foo')">nav</button>
+</template>
+<script>
+export default {
+  methods: {
+    navigate() {
+      this.$router.push({
+        path: '/search',
+        query: {
+          name: 'first name',
+          type: '1'
+        }
+      });
+    }
+  }
+};
+</script>
+```
+
+迁移后：
+
+```vue
+// nuxt 3
+<template>
+  <button @click="navigateTo('/foo')">nav</button>
+</template>
+<script>
+export default {
+  methods: {
+    navigate() {
+      navigateTo({
+        path: '/search',
+        query: {
+          name: 'first name',
+          type: '1'
+        }
+      });
+    }
+  }
+};
+</script>
+```
+
+关于 vue-matemorph 插件的实现源码：
+
+```ts
+import { namedTypes as n } from 'ast-types';
+import { CodemodPlugin } from 'vue-metamorph';
+
+export const programmaticNavigationCodemod: CodemodPlugin = {
+  type: 'codemod',
+  name: 'programmatic-navigation',
+  transform({ scriptASTs, sfcAST, utils: { traverseScriptAST, traverseTemplateAST, astHelpers, builders }, opts }) {
+    let transformCount = 0;
+
+    // 遍历 template 和 script 代码块中 CallExpression 节点的通用方法
+    const traverse = (isTpl: boolean, ast: n.ASTNode) =>
+      traverseScriptAST(ast, {
+        // 该方法就不仔细写注释了，就是实现了 router.push 到 navigateTo 的变更
+        visitCallExpression(path) {
+          if (
+            n.MemberExpression.check(path.node.callee) &&
+            (isTpl
+              ? n.Identifier.check(path.node.callee.object) && path.node.callee.object.name === '$router'
+              : n.MemberExpression.check(path.node.callee.object) &&
+                n.Identifier.check(path.node.callee.object.property) &&
+                path.node.callee.object.property.name === '$router') &&
+            n.Identifier.check(path.node.callee.property) &&
+            path.node.callee.property.name === 'push'
+          ) {
+            const navigateToCallee = builders.identifier('navigateTo');
+
+            path.node.callee = navigateToCallee;
+
+            transformCount++;
+          }
+
+          this.traverse(path);
+        }
+      });
+
+    if (sfcAST) {
+      traverseTemplateAST(sfcAST, {
+        enterNode(node) {
+          if (node.type === 'VOnExpression') {
+            // 对 template 代码块中的 VOnExpression 节点调用变更遍历逻辑
+            node.body.forEach((ast) => traverse(true, ast));
+          }
+        }
+      });
+    }
+
+    for (const scriptAST of scriptASTs) {
+      // 仅迁移 Options API
+      if (scriptAST.isScriptSetup) continue;
+
+      // 对 script 代码块中的根节点调用变更遍历逻辑
+      traverse(false, scriptAST);
+    }
+
+    return transformCount;
+  }
+};
+```
+
+### @nuxt/i18n v8
+
+一些通用解决方案的依赖库，如 @nuxt/i18n，v8 版本和 v7 版本存在较多 breaking change，也可以通过 codemod 的方式进行迁移，如下：
+迁移前：
+
+```vue
+// nuxt 2
+<template>
+  <div>{{ $t('foo') }}</div>
+</template>
+
+<script>
+import messages from '@/locales';
+
+export default {
+  i18n: {
+    messages
+  },
+  methods: {
+    foo() {
+      console.log(this.$t('foo'));
+    }
+  }
+};
+</script>
+```
+
+迁移后：
+
+```vue
+// nuxt 3
+<template>
+  <div>{{ t('foo') }}</div>
+</template>
+
+<script>
+export default {
+  setup() {
+    const { t } = useI18n({
+      useScope: 'local'
+    });
+
+    return {
+      t
+    };
+  },
+  methods: {
+    foo() {
+      console.log(this.t('foo'));
+    }
+  }
+};
+</script>
+
+<i18n lang="json">
+{
+  "ja": {
+    "foo": "foo_ja"
+  },
+  "en": {
+    "foo": "foo_en"
+  }
+}
+</i18n>
+```
+
+针对该插件的实现，因为源码较长，就不复制粘贴了，这里大概展示一些执行该插件的效果录屏：
+
+<div>
+  <video style={{ margin: 'auto' }} controls width={500}>
+    <source src="/videos/ast-in-large-scale-app-migration/v1.mp4" type="video/mp4" />
+    <p>migrate @nuxt/i18n v8 in nuxt 2 codebase</p>
+  </video>
+</div>
+
+针对 700+ 数量的 `.vue` 文件迁移时间，只需要大约 15s 左右的时间，如果这些工作是通过手动完成的话，算每个文件只需要 10s 的时间，700+ 文件作一次迁移大约需要 2 小时，时间差距已经在数量级上拉开了差距。
+
+同时，codemod 的迁移方式，插件内部的迁移逻辑可以通过单元测试进行覆盖，以保证它一定按照预想的结果执行，否则就会报错，只要用例准备充分，理论上不会发生迁移故障，而手动的方式则只能靠主观意识和代码审查来保障达到这些标准。
+
+这里简单列举上面 async component 例子中的测试用例：
+
+```ts
+import { transform } from 'vue-metamorph';
+import { expect, test } from 'vitest';
+import { asyncComponentCodemod } from './async-component';
+
+const baseOptions = {
+  alias: '@:../'
+};
+
+test('change the import syntax with defineAsyncComponent', () => {
+  const source = `<template>
+<div>test</div>
+</template>
+<script>
+export default {
+  components: {
+    DatePicker: () => import('@/components/common/DatePicker'),
+  },
+};
+</script>
+`;
+
+  const expected = `<template>
+<div>test</div>
+</template>
+<script>
+export default {
+  components: {
+    DatePicker: defineAsyncComponent(() => import('@/components/common/DatePicker')),
+  },
+};
+</script>
+`;
+
+  expect(transform(source, 'file.vue', [asyncComponentCodemod], baseOptions).code).toBe(expected);
+});
+```
+
+可以发现，迁移工作的推进，都可以按照 DDD 的模式来进行，开发、验证、迭代，都面向了测试用例，而非源代码本身，当测试用例足够充足和完整时，只要执行这些插件对源代码进行迁移即可。
+
+## 没有银弹
+
+虽然 codemod 工具可以有效提升迁移效率，并具备若干优点，但被迁移的项目也需要符合一定的前提，才适合它发挥作用：
+
+- 项目本身要足够复杂，简单的项目使用 codemod 迁移好比大炮打蚊子
+- 迁移逻辑要具备一定的模式和规模，如果一个迁移逻辑只涉及很少的源文件，这种场景则通过手动方式进行迁移更快捷、更合适
+- 更适合做框架、依赖库相关的迁移
+
+同时，编写 codemod 工具也需要花费额外的精力和时间，如果这些成本无法抵消它所节省的收益，那就会发生得不偿失的结果。
+
+### 总结
+
+截止目前为止，除了 `vue-upgrade-tool` 中包含的 plguin 之外，当前这个项目，额外实现了大约 30+ 个 plugin 来完成 nuxt 2 到 nuxt 3 框架的迁移工作，这些插件的实现逻辑，主要参考自下列这些文章：
+
+- [the official discussion topic](https://github.com/nuxt/nuxt/discussions/19895)
+- [the official guideline for migration of nuxt 2 to nuxt 3](https://nuxt.com/docs/migration/overview)
+- [the official guideline for migration of vue 2 to vue 3](https://v3-migration.vuejs.org/)
+- [a check sheet article from community](https://harlanzw.com/blog/nuxt-3-migration-cheatsheet)
+
+主要覆盖 nuxt、vue 以及第三方依赖库在升级过程中，需要解决的各类 breaking changes 以及 API 调用方式。
+
+虽然这个项目是针对 nuxt 2 到 nuxt 3 做迁移，但利用相同的原理，基于任何框架的项目都可以使用类似地方式进行类似的迁移过程，以达到可以无痛升级技术栈的目标。
+
+通过 codemod 的方式，虽然无法 100% 完成迁移任务（请牢记任何解决方案都不是银弹），但我们至少可以通过它来完成，那些在迁移过程中，重复的、机械的、琐碎的部分，而将有限的时间，投入到那些真正需要关注的部分，如复杂业务逻辑优化、性能优化等方面。

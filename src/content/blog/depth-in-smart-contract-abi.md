@@ -5,7 +5,6 @@ excerpt: 深入了解智能合约中 ABI 在 EVM 执行代码时所扮演的重�
 tags:
   - web3
 author: You
-isFeatured: true
 ---
 
 ## ABI 是什么
