@@ -2,16 +2,19 @@
 title: AWS IAM in Action
 publishDate: 2023/05/19
 excerpt: 介绍 AWS IAM 服务所包含的核心概念与最佳实践，IAM 也是 AWS 最核心的服务之一，了解和掌握 IAM 有助于快速学习和掌握与 IAM 配合使用的 AWS 服务。
-tags: 
-   - aws
+tags:
+  - aws
 author: You
-isFeatured: true
 ---
-import ImagePreviewer from '../../components/react/ImagePreviewer'
+
+import ImagePreviewer from '../../components/react/ImagePreviewer';
 
 ## IAM 是什么
+
 AWS Identity and Access Management (IAM) 是一种 Web 服务，可以帮助您安全地控制对 AWS 资源的访问。借助 IAM，您可以集中管理控制用户可访问哪些 AWS 资源的权限。可以使用 IAM 来控制谁通过了身份验证（准许登录）并获得授权（拥有权限）来使用资源。
+
 ## 主体（Principal）
+
 主体是指能够对 AWS 资源请求行为或操作的人类用户或工作负载。通过身份验证后，根据主体类型，可以向主体授予永久或临时凭证以向AWS发出请求。IAM用户和根用户被授予**永久**凭证，而角色被授予**临时**凭证。<br />作为最佳实践，应尽可能使用临时凭证访问AWS资源，这在一定程度上，提升了安全性。<br />根据可能发送资源请求的场景，主体的类型包含以下几种：
 
 - AWS 账户、根用户、IAM 用户
@@ -19,19 +22,25 @@ AWS Identity and Access Management (IAM) 是一种 Web 服务，可以帮助您�
 - 角色会话
 - 联合用户会话
 - AWS 服务
+
 ## 请求（Request）
+
 当一个主体尝试使用 AWS 管理控制台、AWS API 或 AWS CLI 时，该主体会向 AWS 发送一个请求，请求中会提供包含诸如动作（Action）, 资源（Resource）, 主体（Principal）, 环境数据（Environment data）, 资源数据（Resource data） 等信息的请求上下文。
+
 ## 认证（Authentication）
+
 基本所有与 AWS 服务进行的交互都需要认证，除了少数需要支持匿名访问的服务，如 S3 或者认证服务本身（STS）。<br />认证过程可以通过以下几种方式进行：
 
 - AWS 用户：使用 AWS 用户进行登录，另外，AWS 账户还分为根（Root）用户和 IAM 用户两种类型
-   - 作为最佳实践，除非是必要操作，不要使用根用户而应使用 IAM 用户对 AWS 进行管理
+  - 作为最佳实践，除非是必要操作，不要使用根用户而应使用 IAM 用户对 AWS 进行管理
 - 联合用户：通过身份提供商进行登录，身份提供商可以是多重类型，如 OAuth, SAML, LDAP 等
-   - 联合用户需要通过扮演角色（Role）来与 AWS 进行交互
+  - 联合用户需要通过扮演角色（Role）来与 AWS 进行交互
 - 应用程序：通过扮演角色或密钥对（Access Key and Secret Key）来进行认证
-   - 扮演角色的过程也包含鉴权，它赋予应用程序具有一定期限的临时凭证
-   - 验证密钥对的过程**不**包含鉴权，它的作用是用来验证该密钥对的 AWS 用户是谁，至于鉴权过程则与用户本身拥有多少权限有关
+  - 扮演角色的过程也包含鉴权，它赋予应用程序具有一定期限的临时凭证
+  - 验证密钥对的过程**不**包含鉴权，它的作用是用来验证该密钥对的 AWS 用户是谁，至于鉴权过程则与用户本身拥有多少权限有关
+
 ## 鉴权（Authorization）
+
 认证过程之后，AWS 需要对请求进行鉴权，鉴权主要分为两种类型：
 
 - 身份鉴权（Identity-Based Policy）：基于 IAM 用户本身所拥有的权限进行鉴权，该过程与主体绑定
@@ -44,7 +53,9 @@ AWS Identity and Access Management (IAM) 是一种 Web 服务，可以帮助您�
 - 显式拒绝具有最高优先级，可以覆盖任何场景下的允许逻辑
 
 关于鉴权的流程图，[详见](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_policies_evaluation-logic.html#policy-eval-denyallow)。
+
 ## 资源（Resource）
+
 AWS 资源代表 AWS 服务中所托管或创建的实体，比如：
 
 - IAM：IAM 用户、策略、角色是资源
@@ -52,9 +63,12 @@ AWS 资源代表 AWS 服务中所托管或创建的实体，比如：
 - EC2：VM 实例、弹性 IP、安全组等是资源
 
 关于 IAM 服务所包含的所有资源，[详见](https://docs.aws.amazon.com/service-authorization/latest/reference/list_awsidentityandaccessmanagement.html#awsidentityandaccessmanagement-resources-for-iam-policies)。
+
 ### AWS 资源名称（ARN）
+
 关于资源的命名，AWS 统一使用 ARN 这个术语来描述，它是 Amazon Resource Names 的缩写，它的基本格式是：
-> arn:_partition_:_service_:_region_:_account-id_:_resource-id_ 
+
+> arn:_partition_:_service_:_region_:_account-id_:_resource-id_
 > arn:_partition_:_service_:_region_:_account-id_:_resource-type_:_resource-id_
 > arn:_partition_:_service_:_region_:_account-id_:_resource-type_/_resource-id_
 
@@ -63,14 +77,17 @@ AWS 资源代表 AWS 服务中所托管或创建的实体，比如：
 - region：AWS 服务所在区域的`code`，比如`ap-northeast-1`，它代表亚太地区（东京）
 - resource-type：资源类型英文缩写
 - resource-id：资源唯一标识
-   - 标识符的类型有时候是 ID，有时候可能是一个路径（Path），比如 S3 或 VPC 服务，资源标识符需要使用`/`来表示层级关系
-   - 标识符中可以使用`*`通配符来匹配资源集合
+  - 标识符的类型有时候是 ID，有时候可能是一个路径（Path），比如 S3 或 VPC 服务，资源标识符需要使用`/`来表示层级关系
+  - 标识符中可以使用`*`通配符来匹配资源集合
+
 ### 从哪里查看 ARN
+
 通常直接在 AWS 控制台即可查看，比如查看 IAM 控制台中 IAM 用户的 ARN：<br />
 
-<ImagePreviewer client:load src="/images/aws-iam-in-action/img1.png" alt="the arn of AWS IAM console"/>
+<ImagePreviewer client:load src="/images/aws-iam-in-action/img1.png" alt="the arn of AWS IAM console" />
 
 ## 动作（Action）
+
 动作代表 AWS 资源可以执行的操作，通常和业务逻辑一一对应，比如对于 IAM 服务来说，关于用户最常见的 4 个动作如下：
 
 - CreateUser：创建用户
@@ -79,62 +96,76 @@ AWS 资源代表 AWS 服务中所托管或创建的实体，比如：
 - UpdateUser：更新用户
 
 除了以上 4 个动作之外，其他 IAM 服务支持的动作，[详见](https://docs.aws.amazon.com/service-authorization/latest/reference/list_awsidentityandaccessmanagement.html#awsidentityandaccessmanagement-actions-as-permissions)。<br />值得一提的是，执行动作的前提是 AWS 资源本身要支持该动作，比如针对 S3 服务执行 CreateUser 就没有任何意义，因为 S3 服务不支持该动作，这在编写鉴权策略时要尤为注意。
+
 ## 身份（Identity）
+
 AWS IAM 中身份的概念非常容易和认证中的实体所混淆，身份主要包含：
 
 - 用户（Users）：分为根用户和 IAM 用户
-   - 用户可以声明权限策略
-   - 用户获取的安全凭证是长期的
+  - 用户可以声明权限策略
+  - 用户获取的安全凭证是长期的
 - 用户组（User Groups）：包含多个 IAM 用户的组
-   - 用户组可以声明权限策略
-   - 用户组获取的安全凭证是长期的
+  - 用户组可以声明权限策略
+  - 用户组获取的安全凭证是长期的
 - 角色（Role）：代表拥有哪些权限策略的角色
-   - 通常用于联合身份与 AWS 进行交互的媒介，因此除了声明权限策略，还要声明信任关系来表示主体是否可以扮演该角色
-   - 非联合身份的主题也可以在执行某些操作时，通过扮演角色的方式来进行，如根用户，虽然根用户拥有最大的权限，但为了以防操作有误，可以扮演权限较小的角色来进行操作，提升安全性
-   - 用户组获取的安全凭证是短期的，有时也叫临时凭证
+  - 通常用于联合身份与 AWS 进行交互的媒介，因此除了声明权限策略，还要声明信任关系来表示主体是否可以扮演该角色
+  - 非联合身份的主题也可以在执行某些操作时，通过扮演角色的方式来进行，如根用户，虽然根用户拥有最大的权限，但为了以防操作有误，可以扮演权限较小的角色来进行操作，提升安全性
+  - 用户组获取的安全凭证是短期的，有时也叫临时凭证
 - 标签（Tagging）：可以为 AWS 资源增加标签，它可以增加资源的语义性，同时可以在 ABAC 权限管理模式下被使用，在该模式下，满足某些规则的标签则代表一种身份。
+
 ## 策略（Policy）与权限（Permission）
+
 在 AWS 中，您可以通过创建策略并将其附加到 IAM 身份验证（用户、用户组或角色）或 AWS 资源来管理访问。策略是 AWS 中的一个对象，当与身份验证或资源关联时，它定义了它们的权限。<br />当 IAM 主体（用户或角色）发出请求时，AWS 根据请求上下文解析出主体所拥有的权限，从而决定是否允许或拒绝该请求。<br />大多数策略以 JSON 文档的形式存储在 AWS 中，AWS 支持六种类型的策略：
 
 - Identity-Based Policy：基于身份的策略
-   - 将托管（AWS 托管或用户托管）和内联策略附加到 IAM 身份 (用户、用户所属的组或角色) 上，它会授予权限给身份。
+  - 将托管（AWS 托管或用户托管）和内联策略附加到 IAM 身份 (用户、用户所属的组或角色) 上，它会授予权限给身份。
 - Resource-Based Policy：基于资源的策略
-   - 将内联策略附加到资源上，它会授予权限给在策略中指定的主体。
+  - 将内联策略附加到资源上，它会授予权限给在策略中指定的主体。
 - Permissions Boundary：权限边界
-   - 该策略定义了基于身份的策略可以授予实体的最大权限，但**不会**授予权限
-   - 权限边界**不会**定义基于资源的策略可以授予实体的最大权限。
+  - 该策略定义了基于身份的策略可以授予实体的最大权限，但**不会**授予权限
+  - 权限边界**不会**定义基于资源的策略可以授予实体的最大权限。
 - Organizations SCP：使用 AWS 组织服务控制策略 (SCP) 定义组织或组织单位 (OU) 的帐户成员的最大权限
-   - SCP 限制身份策略或基于资源的策略授予实体 (用户或角色) 的权限，但不授予权限。
+  - SCP 限制身份策略或基于资源的策略授予实体 (用户或角色) 的权限，但不授予权限。
 - Access Control Lists：ACL 策略，它所附加的资源仅可以被有限的主体访问
-   - ACL 类似于基于资源的策略，它不使用 JSON 策略文档结构的策略类型
-   - ACL 是授予指定主体权限的跨帐户权限策略，如 S3 场景下，一个存储桶中某个文件对象可以被多个主体更改，通常使用 ACL 来限制哪些主体拥有更改该文件对象的权限
+  - ACL 类似于基于资源的策略，它不使用 JSON 策略文档结构的策略类型
+  - ACL 是授予指定主体权限的跨帐户权限策略，如 S3 场景下，一个存储桶中某个文件对象可以被多个主体更改，通常使用 ACL 来限制哪些主体拥有更改该文件对象的权限
 - Session Policy：在使用 AWS CLI 或 AWS API 扮演角色或作为联合用户时，可以传递会话策略
-   - 会话策略限制角色或用户的基于身份的策略授予会话的权限
-   - 会话策略限制当前会话的最大权限，但**不会**授予权限
+  - 会话策略限制角色或用户的基于身份的策略授予会话的权限
+  - 会话策略限制当前会话的最大权限，但**不会**授予权限
 
 虽然有以上六种类型，但较常用的策略通常为**基于身份的策略**、**基于资源的策略**和**会话策略**，最佳实践如下：
 
 - 基于身份的策略：通常用于声明主体是否有权限使用某个 AWS 服务，颗粒度较粗，该类型与主体强耦合
 - 基于资源的策略：通常用于声明主体是否有权限操作某个 AWS 资源，颗粒度较细，该类型与主体低耦合
 - 会话策略：用于 CI/CD，由于会话策略会进一步限制 AWS 解析权限时，所授的最大权限，可以进一步提升安全性，因为 CI/CD 任务有时往往不是主动触发的
+
 ### 权限边界（Permission Boundary）
+
 > [https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_policies_boundaries.html)
 
 AWS 支持 IAM 实体（用户或角色）的权限边界，它设置身份策略可以授予 IAM 实体的最大权限，但不会授予权限。<br />不会授予权限的意思是，虽然实体仍然有可能拥有超出权限边界的那些权限，但这些权限均会在资源请求鉴权时，判定为无效权限。<br />权限边界的使用场景有很多，如下：
 
 - 限制实体可拥有的最大权限，以确保安全性
 - 解决权限委托中的信任问题，比如可以 A 可以授予 B 管理员权限以创建 User，但又期望 B 所创建的 User 满足某些规则，这时可以使用权限边界来解决信任问题
+
 ## 最佳实践
+
 ### AWS Account vs IAM User
+
 > [https://blog.jannikwempe.com/aws-accounts-iam-users-root-user#heading-account](https://blog.jannikwempe.com/aws-accounts-iam-users-root-user#heading-account)
 
 AWS Account 指账户，即自然人使用 email 登录 AWS 的账户，而 IAM User 是一种主体类型，通常它与 AWS Account 所绑定，但并不是所有 IAM User 都有 AWS Account，它除了表示自然人之外，还可以表示某个应用程序，某个组织等等。
+
 ### IAM Role vs Resourced-Based Policy
+
 > [https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_compare-resource-policies.html](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_compare-resource-policies.html)
 
 虽然通过 IAM 角色和基于资源的策略都可使用跨账户的鉴权模式，但是后者拥有一个优势，即授权委托。<br />授权委托指在跨账户场景下，一个**根**账户可以将授予该账户的权限，二次赋予类似 IAM 用户或角色等身份使用，AWS 在解析权限时，会采用两者间权限更小的那个，这使得授权过程变得更灵活和更安全。
+
 ### 如何查看一个 AWS Service 是否支持 Resource-Based Policy
+
 可以在[这里](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_aws-services-that-work-with-iam.html)查看，表格中 Resourced-based policies 列为 YES 的服务均支持声明基于资源的策略，常用服务比如 S3，Lambda，ECR 以及 Secret Manger 均支持。
+
 ## 参考
 
 - [Actions, resources, and condition keys for AWS services](https://docs.aws.amazon.com/service-authorization/latest/reference/reference_policies_actions-resources-contextkeys.html)

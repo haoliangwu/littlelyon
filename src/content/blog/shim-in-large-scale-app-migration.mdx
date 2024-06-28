@@ -1,0 +1,221 @@
+---
+title: shim 在迁移复杂前端项目中的应用
+excerpt: 上篇文章中，我们介绍了如何以 AST 为媒介，通过 codemods 工具对大型前端项目进行迁移，这篇文章算是对上篇文章的一些补充，同样以 nuxt 2 迁移 nuxt 3 为项目背景，深入探讨 shim 的概念及其在迁移复杂前端项目中的应用，以及它如何使迁移过程事半功倍。
+publishDate: 2024/06/28
+tags:
+  - js
+  - vue
+  - nuxt
+isFeatured: true
+seo:
+  image:
+    src: '/images/ast-in-large-scale-app-migration/img3.png'
+    alt: shim 在迁移复杂前端项目中的应用
+---
+
+import ImagePreviewer from '../../components/react/ImagePreviewer';
+
+## 写在前面
+
+在上篇文章[使用 AST 迁移复杂前端项目的探索](https://www.littlelyon.com/blog/ast-in-large-scale-app-migration/)中，我们介绍了如何以 AST 为媒介，通过 codemods 工具对大型前端项目进行迁移，这篇文章算是对上篇文章的一些补充，同样以 nuxt 2 迁移 nuxt 3 为项目背景，深入探讨 shim 的概念及其在迁移复杂前端项目中的应用，以及它如何使迁移过程事半功倍。
+
+## shim 是什么
+
+shim 翻译为中文是“垫片”的意思，它是一种用于弥补旧环境与新环境之间差距的技术。它通过提供兼容层的方式，使得旧代码能够在新环境中正常运行。
+
+关于项目迁移的场景，非常像一张因为桌腿高低不齐而摇摇晃晃的桌子，想让桌子平稳，可以换一张新桌子（重写），但由于换新桌子要花钱，所以只能将就一下，在桌脚下垫一些纸片或者木板（shim）使桌子暂时变平稳。
+
+虽然这个例子不一定恰当，但我想表达的意思是，shim 是一种 workaround，它通常是在不得已的情况下使用，也正因为如此，才因为它往往可以发挥四两拨千斤的作用。
+
+### shim 与 polyfill
+
+前端开发中，shim 最常见的表现形式通常被称作 polyfill，它一般用作对浏览器中的 API 做兼容性处理，比如大名鼎鼎的 `core-js`，它本身是一个 polyfill，但它的本质实际上是 shim。
+
+shim 和 polyfill 除了包含的关系之外，我认为它们之间还有一个比较微妙的区别：
+
+- shim 通常*不*包含新的实现逻辑，它所实现的是一个兼容层，其内部往往通过调用旧对象的方式，来模拟新对象的行为
+- polyfill 则包含新的实现逻辑，它会在旧环境中，实现一个不存在的、与新环境中某个对象具有相同接口行为的新对象，在逻辑上它们是等价的，可替换的
+
+举个例子：
+
+```js
+// 为旧浏览器添加 Promise 支持，因为旧环境中不存在 Promise 对象，所以它是 polyfill
+if (!window.Promise) {
+  window.Promise = function () {
+    // 实现 Promise 的具体逻辑，由于太长了，就省略了
+  };
+}
+
+// 为旧浏览器提供 fetch API 的兼容层，因为旧环境中可以通过 XMLHttpRequest 来模拟 fetch，所以它是 shim
+if (!window.fetch) {
+  window.fetch = function (url, options) {
+    return new Promise((resolve, reject) => {
+      // 使用 XMLHttpRequest 实现 fetch 的功能
+      const xhr = new XMLHttpRequest();
+      xhr.open(options.method || 'GET', url);
+      // 这里就简单包装一个 json() 方法
+      xhr.onload = () => resolve({ json: () => JSON.parse(xhr.responseText) });
+      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.send(options.body);
+    });
+  };
+}
+```
+
+当然，大多数场景下，这个细微的区别也可以忽略，因此针对 `fetch` 的兼容性处理，很多人也会称作 polyfill，这是完全正确的。
+
+同时，这里的*新*与*旧*，是可以互换的，比如在项目迁移的场景下，因为我们的目的是迁移代码，所以这里的“旧环境”实际指迁移后的新项目，但不论这两者怎么互换，shim 的目的都是为了实现一个兼容层，来弥补它两者之间的差异。
+
+## @nuxt/bridge 的问题
+
+其实在上面篇文发布后，很多人都问我这样一个问题，为什么不使用官方建议的 @nuxt/bridge 来做渐进式迁移呢？ 这里简单回答一下。
+
+实际上在调研迁移策略以及做迁移计划时，@nuxt/bridge 确实是候选方式之一，但经过讨论和调研，我们发现 @nuxt/bridge 最大的问题在于*它本身并不是为了迁移项目而存在的*。
+
+首先，@nuxt/bridge 所提供的功能，是让 nuxt 2 项目可以在它的加持下，提前使用 nuxt 3 中的部分特性，最大的特性即是 vue 3 推出的 Composable API，但它最大的问题在于，它的运行时仍然是 nuxt 2，而非 nuxt 3，这意味着即使项目在 @nuxt/bridge 的加持下可以顺利过渡到 Composable API，但项目的运行时仍然是 nuxt 2，我认为理想的情况下，应该是运行时是 nuxt 3，同时通过某种方式（其实就是后面的实践案例）让项目仍然能够正常运行，即所谓的向后兼容。
+
+第二个原因在于，@nuxt/bridge 在社区的普遍反馈都表现不佳，有非常多的 issue 抱怨即使 nuxt 2 可以与 @nuxt/bridge 一起正常运行，但却很难找到可以与它配合使用的第三方类库，总是会遇到奇奇怪怪的 bug，而且很多类库基本处于以下两种状态：
+
+- 仅支持 nuxt 2，等价替换的类库与 @nuxt/bridge 不兼容
+- 支持 nuxt 3，但与 @nuxt/bridge 不兼容
+
+第三个原因是在这个时间点，nuxt 4 都马上要发布了，使用 @nuxt/bridge 却仍然是以 nuxt 3 为目标，早晚还是会面临一次框架层面的迁移，为什么不直接一步到位把 @nuxt/bridge 这个包袱甩掉呢？
+
+因此，如果说 @nuxt/bridge 是 nuxt 2 中的 polyfill 的话，那下面实践案例中所实现的就是 nuxt 3 中的 shim。
+
+## 实践案例
+
+### nuxt 2 中的 context 对象
+
+在 nuxt 3 中，已经没有一个大而全的 context 对象，想要获取之前通过 context 读取的属性和状态，则需要通过若干 nuxt 3 内置实现的 Composable API。
+
+但问题在于，nuxt 2 中的 context 作为一个全局对象，不同维度的模块都或多或少会引用它，如果全部将这些逻辑使用 Composable API 进行替换，其侵入性程度已经和重写差不多了。
+
+因此秉持增量式迁移的原则，寄存代码能少改就少改，能不改就不改，但它的前提是我们需要在 nuxt 3 中提供一个与 nuxt 2 context 相同的上下文对象，如下：
+
+```js
+import { useStore } from 'vuex';
+
+export function useNuxt2Context() {
+  const nuxtApp = useNuxtApp();
+  const route = useRoute();
+  const store = useStore();
+  const event = useRequestEvent();
+
+  // 参考 https://v2.nuxt.com/docs/internals-glossary/context#the-context 来实现 context
+  const nuxt2Context = {
+    app: nuxtApp,
+    isClient: import.meta.client,
+    isServer: import.meta.server,
+    isDev: import.meta.dev,
+    isHMR: process.dev && !!module.hot,
+    route,
+    store,
+    env: nuxtApp.$config,
+    params: route.params,
+    query: route.query,
+    req: import.meta.server ? event?.node.req : undefined,
+    res: import.meta.server ? event?.node.res : undefined
+    // ...省略
+  };
+
+  return nuxt2Context;
+}
+```
+
+可以发现，新的 context 对象通过 Composable API 实现，在使用时，可以在 `setup` 方法中调用它，如下：
+
+```js
+export default {
+  // 该方法可以通过 AST 方式生成或修改
+  setup() {
+    // 调用上面 useNuxt2Context 来提供 context 兼容对象
+    const nuxt2Context = useNuxt2Context();
+
+    return {
+      nuxt2Context
+    };
+  }
+};
+```
+
+之后即可以通过 `this` 访问它，之后可以针对不同的 context 引用逻辑，确定固定的迁移模式，再通过 AST 的方式实现相应的迁移插件进行迁移。
+
+### nuxt 2 中的 fetch
+
+这个例子其实就是上一个例子的实际应用，nuxt 2 中，`fetch` 是一个用于在页面或组件获取数据的 hook，在 nuxt 3 中它已经被弃用并建议通过 `useFetch` 进行迁移，[详见](https://nuxt.com/docs/migration/component-options#composables)。
+
+这里的问题也是类似的，即 `fetch` 方法作为异步获取数据的入口，基本上会在所有的 vue 组件中使用，只要组件包含异步获取数据的逻辑，如果全部通过 `useFetch` 迁移，工作量和影响范围可想而知。
+
+与此同时，`fetch` 方法在 nuxt 2 中，由于它无法访问 `this`，它的第一个参数会在调用时被传入 context 对象，这个行为在 nuxt 3 并不容易轻易等价替换。
+
+但基于上一个例子中的模式，我们可以最大程度上复用旧代码，来进行增量式迁移，如下：
+
+```js
+export default {
+  // 该方法可以通过 AST 方式生成或修改
+  setup() {
+    // 调用上面 useNuxt2Context 来提供 context 兼容对象
+    const nuxt2Context = useNuxt2Context();
+
+    return {
+      nuxt2Context
+    };
+  },
+  // 该方法可以通过 AST 方式生成或修改
+  created() {
+    // nuxt 3 中通过在 created 中调用 fetch 方法来模拟 nuxt 2 中的行为
+    this.fetch(this.nuxt2Context);
+  },
+  // nuxt 2 中 fetch 的原始实现
+  async fetch({ store, params, app }) {
+    // ..具体业务逻辑
+  }
+};
+```
+
+这里之所以可以通过在 created 声明周期中调用 fetch 方法来模拟 `fetch` 在 nuxt 2 中的原始行为，是因为[官方文档](https://v2.nuxt.com/docs/concepts/nuxt-lifecycle#lifecycle)所描述的 `fetch` 的调用时机在 `created` 之后，因此只要在 `created` 声明周期中，尽早地调用 `fetch` 即可以最大程度上模拟它的行为，同时将 `useNuxt2Context` 返回的 nuxt2Context 对象作为参数传给它，以模拟 nuxt 2 中的 context 对象。
+
+### 是否按类似方式迁移 asyncData
+
+严格来说是不行的，这是因为[官方文档](https://v2.nuxt.com/docs/concepts/nuxt-lifecycle#lifecycle)所描述的 `asyncData` 调用时机在 `beforeCreate` 之前，因此我们很难找到一个合适的时机来调用它。
+
+不过考虑到 `beforeCreate` 在应用场景中的使用频率一般是较低的，如果代码中的 `beforeCreate` 并没有大范围使用或包含较复杂的逻辑，也完全可以通过在 `beforeCreate` 中调用 `asyncData` 的方式模拟它。
+
+但这里要注意，`asyncData` 与 `fetch` 最大的本质区别在于它更多用于提升 SEO，同时它原始的调用行为，会阻塞页面跳转，而新的模拟行为则无法做到这点，因此要在这些区别上，格外关注是否可能引入 bug。
+
+### nuxt 2 中的 store
+
+最后一个示例和 AST 迁移关系不大，它的原理就是利用 nuxt 3 中的 plugin 机制，为 `store` 对象动态注入一些属性，这么做的原因在于，nuxt 2 由于内置 `vuex` 的原因，`store` 方法可以很方便的通过 `this` 来引用一些功能性的全局对象，比如 `$i18n`。
+
+在 nuxt 3 中，由于 `store` 的解决方案官方已经建议迁移至 `pinia`，虽然可以通过 `nuxt3-vuex-module` 这个库来集成 `vuex@4`，但它的表现行为会和之前有一些不同，经过调查，发现 `store` 中的 `this` 都指向 `store` 本身，因此为了不侵入性的修改库本来的行为，使用该方式在 `store` 上挂载相应的全局性功能性对象，以形成兼容层，供其内部使用。
+
+这种方式我认为某种程度上说，不能算是 shim，只能算作是一种 patch，不过思想是一样的。
+
+```js
+import { useStore } from 'vuex';
+
+import dayjs from '@/util/dayjs';
+
+export default defineNuxtPlugin((nuxtApp) => {
+  const config = useRuntimeConfig();
+  const store = useStore();
+
+  // @ts-expect-error workaround for this.$i18n in vuex store
+  store.$i18n = nuxtApp.$i18n;
+  // @ts-expect-error workaround for this.$dayjs in vuex store
+  store.$dayjs = dayjs;
+
+  nuxtApp.provide('dayjs', dayjs);
+});
+```
+
+## 总结
+
+通过 shim 和 AST 的方式来迁移项目，原始 6 个月的估时现在只需要 1 个月就可以完成，同时它在实施层面，也具备重写策略和人力迁移所无法比拟的优势（具体优势可参考上篇文章）。
+
+当然，我们可以发现，虽然迁移可以在很短的时间内完成，同时保证稳定性和质量，但代码本身还是旧代码，要彻底对代码本身进行迁移，这部分工作量无论通过何种方式，都是无法避免的。
+
+不过话说回来，这两篇文章最终达成的效果，也至多是把一座“屎山”分割成了若干小的“屎山”，同时把它们各自装到一个小的盒子中，在重新把这些盒子堆在一起，虽然从外表看，可能不太像“屎山”了，但其实内部仍然是“屎山”。
+
+所以，杜绝“屎山”，从我做起，从现在开始，写好自己手上的每一个项目。
