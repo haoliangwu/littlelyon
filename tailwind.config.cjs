@@ -1,12 +1,14 @@
 const defaultTheme = require('tailwindcss/defaultTheme');
 
+const baseFont = ['system-ui', 'Segoe UI', 'Roboto', 'Helvetica', 'Arial', 'sans-serif', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'];
+
 module.exports = {
     content: ['./src/**/*.{astro,html,js,jsx,md,mdx,ts,tsx}'],
     darkMode: 'class',
     theme: {
         fontFamily: {
-            sans: ['Inter', ...defaultTheme.fontFamily.sans],
-            serif: ['Newsreader', ...defaultTheme.fontFamily.serif]
+            sans: baseFont,
+            serif: baseFont
         },
         extend: {
             textColor: {
