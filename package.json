@@ -10,23 +10,28 @@
         "astro": "astro"
     },
     "dependencies": {
+        "@astrojs/lit": "^4.3.0",
         "@astrojs/mdx": "^2.2.4",
         "@astrojs/react": "^3.3.1",
         "@astrojs/rss": "^4.0.5",
         "@astrojs/sitemap": "^3.1.2",
         "@astrojs/tailwind": "^5.1.0",
+        "@monaco-editor/react": "^4.6.0",
         "@vercel/analytics": "^1.3.1",
         "@vercel/speed-insights": "^1.0.12",
+        "@webcomponents/template-shadowroot": "^0.2.1",
         "astro": "^4.5.17",
+        "lit": "^3.2.0",
         "marked": "^12.0.1",
         "react": "^18.3.0",
-        "react-code-blocks": "^0.1.6",
         "react-dom": "18.3.0",
         "react-photo-view": "^1.2.4",
         "tailwindcss": "^3.4.3"
     },
     "devDependencies": {
         "@tailwindcss/typography": "^0.5.12",
+        "@types/react": "^18.3.4",
+        "@types/react-dom": "^18.3.0",
         "prettier": "^3.2.5",
         "prettier-plugin-tailwindcss": "^0.5.13"
     }

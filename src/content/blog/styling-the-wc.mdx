@@ -1,0 +1,131 @@
+---
+title: Styling the Web Component
+excerpt: 'we will explore the essential techniques for styling modern web components, including the use of CSS variables for design tokens, and advanced selectors like :host(), ::slotted() and ::part().'
+publishDate: 2024/08/24
+tags:
+  - web component
+seo:
+  image:
+    src: '/post-1.jpg'
+    alt: A person standing at the window
+---
+
+In this blog post, we'll explore the various methods for styling web components, from using CSS variables to leveraging advanced selectors and attributes like `:host()`, `::slotted()`, and `::part()`. We'll also touch on why it's essential to apply BEM naming conventions when working with `part` and `exportparts` attributes. Let's dive in!
+
+## CSS Variable and Design Token
+
+CSS variables, also known as custom properties, are a powerful way to manage design tokens in web components. They allow us to define reusable values for colors, spacing, typography, and other design elements, which can then be applied consistently across multiple components.
+
+For example:
+
+```css
+:root {
+  --primary-color: #ff6b6b;
+  --font-size: 16px;
+}
+
+my-component {
+  background-color: var(--primary-color);
+  font-size: var(--font-size);
+}
+```
+
+import { MyButton } from '../../components/lit/styling-the-wc/button';
+
+<MyButton client:visible />
+
+By defining CSS variables at the root level, we create a global set of design tokens that can easily be adjusted without modifying individual component styles.
+
+## `:host()` and `:host-context()` Pseudo-Class Selectors
+
+The `:host()` pseudo-class selector is used to style the host element of a web component from within its shadow DOM. This is useful when you want to target the outermost element of the component, rather than elements inside the shadow DOM.
+
+```css
+:host {
+  display: block;
+  border: 2px solid var(--primary-color);
+}
+```
+
+You can also use `:host()` with arguments to apply styles when the host element matches specific conditions:
+
+```css
+:host([disabled]) {
+  opacity: 0.5;
+  pointer-events: none;
+}
+```
+
+The `:host-context()` pseudo-class selector extends this by allowing you to apply styles to a web component based on the context in which it is placed. For instance, you can style a component differently if it’s inside a specific ancestor element:
+
+```css
+:host-context(.dark-theme) {
+  color: white;
+  background-color: black;
+}
+```
+
+## `::slotted()` Pseudo-Element Selector
+
+The `::slotted()` pseudo-element selector allows you to style elements that are projected into a web component's shadow DOM via the `<slot>` element. This is particularly helpful when building reusable components with customizable content.
+
+```html
+<slot name="header"></slot>
+```
+
+To style the slotted content, you can use `::slotted()`:
+
+```css
+::slotted(h1) {
+  color: var(--primary-color);
+  font-size: 2rem;
+}
+```
+
+This way, you can maintain control over the appearance of slotted content without requiring users to apply styles themselves.
+
+## `::part()` Pseudo-Element Selector and the `part` and `exportparts` Attributes
+
+The `::part()` pseudo-element selector allows developers to expose parts of a shadow DOM element for styling from outside the component. This is done by assigning a `part` attribute to internal elements and then styling them using `::part()` from outside the shadow DOM.
+
+```html
+<div part="button">Click me!</div>
+```
+
+From outside the component, you can style the exposed `part`:
+
+```css
+my-component::part(button) {
+  background-color: var(--primary-color);
+  border-radius: 5px;
+}
+```
+
+### Why We Need BEM Naming Conventions for it
+
+When using `part` and `exportparts`, it's a good practice to follow the BEM (Block-Element-Modifier) naming convention to keep your code modular and maintainable. BEM naming ensures that your parts are clearly defined and prevents conflicts when composing or extending web components.
+
+For example:
+
+```html
+<div part="button__icon button__label"></div>
+```
+
+This structure makes it easier to understand the relationships between different elements and to apply styles consistently across components. It also helps when working with the `exportparts` attribute, which allows you to expose shadow DOM parts from a nested component to its parent.
+
+```html
+<child-component exportparts="button__icon, button__label"></child-component>
+```
+
+By adhering to the BEM convention, you ensure that your components remain scalable and that styling across nested components remains organized and predictable.
+
+## Conclusion
+
+Styling web components provides flexibility and encapsulation, enabling us to create reusable and customizable UI elements. With techniques like CSS variables, `:host()` and `::slotted()` selectors, and the `::part()` pseudo-element selector, we can build components that not only look great but are also highly maintainable.
+
+By following best practices such as using BEM naming for `part` and `exportparts`, we ensure that our code remains scalable and easy to manage in large-scale applications. Happy styling!
+
+```
+
+Feel free to adjust this draft as needed. Would you like help implementing any specific sections in your actual blog platform?
+```

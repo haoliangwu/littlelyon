@@ -20,7 +20,7 @@ const Child1 = () => {
 
 export const Example1 = () => {
     return (
-        <CodeBlock language="jsx" text={Example1.Source}>
+        <CodeBlock language="jsx" code={Example1.Source}>
             <Parent1 />
         </CodeBlock>
     );
@@ -47,8 +47,7 @@ const Child = () => {
       </button>
     </div>
   );
-};
-`;
+};`;
 
 const Parent2 = () => {
     const [toggled, setToggled] = useState(false);
@@ -81,7 +80,7 @@ const Child2 = ({ toggled }: { toggled: boolean }) => {
 
 export const Example2 = () => {
     return (
-        <CodeBlock language="jsx" text={Example2.Source}>
+        <CodeBlock language="jsx" code={Example2.Source}>
             <Parent2 />
         </CodeBlock>
     );
@@ -153,7 +152,7 @@ const Child3 = forwardRef<Dispatch<SetStateAction<number>>>((props, ref) => {
 
 export const Example3 = () => {
     return (
-        <CodeBlock language="jsx" text={Example3.Source}>
+        <CodeBlock language="jsx" code={Example3.Source}>
             <Parent3 />
         </CodeBlock>
     );
@@ -240,7 +239,7 @@ const Child4 = forwardRef<Child4FakeThis>((props, ref) => {
 
 export const Example4 = () => {
     return (
-        <CodeBlock language="jsx" text={Example4.Source}>
+        <CodeBlock language="jsx" code={Example4.Source}>
             <Parent4 />
         </CodeBlock>
     );
@@ -312,15 +311,11 @@ const Parent5 = () => {
 const Child5 = forwardRef<Child5FakeThis>((props, ref) => {
     const [count, setCount] = useState(0);
 
-    useImperativeHandle(
-        ref,
-        () => {
-            return {
-                reset: () => setCount(0)
-            };
-        },
-        []
-    );
+    useImperativeHandle(ref, () => {
+        return {
+            reset: () => setCount(0)
+        };
+    }, []);
 
     return (
         <div>
@@ -333,7 +328,7 @@ const Child5 = forwardRef<Child5FakeThis>((props, ref) => {
 
 export const Example5 = () => {
     return (
-        <CodeBlock language="jsx" text={Example5.Source}>
+        <CodeBlock language="jsx" code={Example5.Source}>
             <Parent5 />
         </CodeBlock>
     );
