@@ -6,126 +6,449 @@ tags:
   - web component
 seo:
   image:
-    src: '/post-1.jpg'
-    alt: A person standing at the window
+    src: '/images/styling-the-wc/img1.jpg'
+    alt: 'Styling the Web Component'
 ---
+
+import { MyButton } from '../../components/lit/styling-the-wc/button';
+import { MyButtonGroup } from '../../components/lit/styling-the-wc/button-group';
 
 In this blog post, we'll explore the various methods for styling web components, from using CSS variables to leveraging advanced selectors and attributes like `:host()`, `::slotted()`, and `::part()`. We'll also touch on why it's essential to apply BEM naming conventions when working with `part` and `exportparts` attributes. Let's dive in!
 
 ## CSS Variable and Design Token
 
-CSS variables, also known as custom properties, are a powerful way to manage design tokens in web components. They allow us to define reusable values for colors, spacing, typography, and other design elements, which can then be applied consistently across multiple components.
+CSS variables, also known as custom properties, are a powerful way to manage design tokens in web components. They allow us to define reusable values for colors, spacing, typography, and other design tokens, which can then be applied consistently across multiple components.
 
-For example:
+For example, let use `lit` to implement a pretty button with a hot theme:
 
-```css
-:root {
-  --primary-color: #ff6b6b;
-  --font-size: 16px;
-}
+```ts
+import { LitElement, css, html, type CSSResultGroup } from 'lit';
+import { customElement, state } from 'lit/decorators.js';
 
-my-component {
-  background-color: var(--primary-color);
-  font-size: var(--font-size);
+@customElement('my-button')
+export class MyButton extends LitElement {
+  @state() name = 'my-button';
+
+  static styles?: CSSResultGroup | undefined = [
+    css`
+      :host {
+        --gradient-color-start: #ff6b6b;
+        --gradient-color-end: #f06595;
+      }
+
+      button {
+        background: linear-gradient(135deg, var(--gradient-color-start), var(--gradient-color-end));
+        color: white;
+        font-size: 16px;
+        font-weight: bold;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 30px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        transition: all 0.3s ease;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background: linear-gradient(135deg, var(--gradient-color-end), var(--gradient-color-start));
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        transform: translateY(-3px);
+      }
+
+      button:active {
+        transform: translateY(0);
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+    `
+  ];
+
+  override render() {
+    return html`<button><slot></slot></button>`;
+  }
 }
 ```
 
-import { MyButton } from '../../components/lit/styling-the-wc/button';
+```html
+<my-button class="cold">I am Hot Theme</my-button>
+```
 
-<MyButton client:visible />
+<MyButton client:only="lit">
+  <span>I am Hot Theme</span>
+</MyButton>
 
-By defining CSS variables at the root level, we create a global set of design tokens that can easily be adjusted without modifying individual component styles.
+By defining CSS variables at the root level(which is the `:host` here), we declare two css variables standing for the start and end color layer for gradient background.
 
-## `:host()` and `:host-context()` Pseudo-Class Selectors
-
-The `:host()` pseudo-class selector is used to style the host element of a web component from within its shadow DOM. This is useful when you want to target the outermost element of the component, rather than elements inside the shadow DOM.
+If we would like to customize the background to sort of cold theme, we could easily apply following css to the host element of this web component, eg:
 
 ```css
+/* within root-dom */
+my-button.cold {
+  --gradient-color-start: #0077b6;
+  --gradient-color-end: #00b4d8;
+}
+```
+
+```html
+<my-button class="cold">I am Cold Theme</my-button>
+```
+
+<style dangerouslySetInnerHTML>
+  {`my-button.cold {
+  --gradient-color-start: #0077b6;
+  --gradient-color-end: #00b4d8;
+}`}
+</style>
+
+<MyButton client:only="lit" class="cold">
+  <span>I am Cold Theme</span>
+</MyButton>
+
+By declaring design tokens with css variables, we could expose flexibility to the users who prefer to customize the limited styles of the web component.
+
+The meaning of "limited" is unless the design tokens are declared by creator of components, we cannot customize any styles of web component, it is how shadow-dom works.
+
+## `:host`, `:host()` and `:host-context()` Pseudo-Class Selectors
+
+### `:host` and `:host()`
+
+The `:host()` pseudo-class selector is used to style the host element of a web component from within its shadow-dom. This is useful when you want to target the outermost element of the component, rather than elements inside the shadow-dom.
+
+Just like the above example, we declare two css variables on host element.
+
+```css
+/* within shadow-dom */
 :host {
-  display: block;
-  border: 2px solid var(--primary-color);
+  --gradient-color-start: #ff6b6b;
+  --gradient-color-end: #f06595;
 }
 ```
 
-You can also use `:host()` with arguments to apply styles when the host element matches specific conditions:
+However, I think the most powerful usage of `:host()` pseudo-class selector is,we could apply selector query parameters to it and assert **"when the host element matches specific conditions, we should do something..."**.
+
+For example, if we would like to style our button component of `disabled` state:
 
 ```css
+/* within shadow-dom */
 :host([disabled]) {
   opacity: 0.5;
   pointer-events: none;
 }
 ```
 
-The `:host-context()` pseudo-class selector extends this by allowing you to apply styles to a web component based on the context in which it is placed. For instance, you can style a component differently if it’s inside a specific ancestor element:
+```html
+<my-button disabled>I am Disabled</my-button>
+```
+
+<MyButton client:only="lit" disabled>
+  <span>I am Disabled</span>
+</MyButton>
+
+### `:host-context()`
+
+The `:host-context()` pseudo-class selector extends this by allowing you to apply styles to a web component based on the context in which it is placed. With it, we could assert **"when the host element belongs to some elements match specific conditions, we should do something..."**.
+
+For instance, you can style a component differently if it's inside a specific ancestor element, let say our button should also provide a outlined theme for dark mode:
 
 ```css
-:host-context(.dark-theme) {
-  color: white;
-  background-color: black;
+/* within shadow-dom */
+:host-context(.dark-mode) button {
+  color: var(--gradient-color-start);
+  background: transparent;
+  border: 2px solid var(--gradient-color-end);
 }
 ```
+
+```html
+<div className="dark-mode">
+  <my-button>I am Outlined</my-button>
+</div>
+```
+
+<div className="dark-mode">
+  <MyButton client:only="lit">
+    <span>I am Outlined</span>
+  </MyButton>
+</div>
+
+Please note that these pseudo selectors only take work within the shadow-dom tree, if we declare them under root-dom tree, they will not take effect.
+
+On the other hand, it is same with css variables, we could expose flexibility to the users when the creator of component declare these css rules ahead of time, if not, the users cannot benefit from it.
 
 ## `::slotted()` Pseudo-Element Selector
 
-The `::slotted()` pseudo-element selector allows you to style elements that are projected into a web component's shadow DOM via the `<slot>` element. This is particularly helpful when building reusable components with customizable content.
+The `::slotted()` pseudo-element selector allows you to style elements that are projected into a web component's shadow-dom via the `<slot>` element. This is particularly helpful when building reusable components by following composition pattern.
 
-```html
-<slot name="header"></slot>
-```
+In current implementation, we already use `<slot>` to indicate the text projected by users, we could style the slotted content by using `::slotted()`.
 
-To style the slotted content, you can use `::slotted()`:
+For example, we could append a **>** char at end of the button text when we find the tag of `<slot>` projected into component is a anchor tag:
 
 ```css
-::slotted(h1) {
-  color: var(--primary-color);
-  font-size: 2rem;
+/* within shadow-dom */
+::slotted(a)::after {
+  color: white;
+  content: '>';
+  padding: 0 0 0 0.5em;
+  font-size: 1.25em;
 }
 ```
+
+```html
+<my-button>
+  <a>I am an Anchor</a>
+</my-button>
+```
+
+<MyButton client:only="lit">
+  <a className="flex items-center no-underline text-white">I am an Anchor</a>
+</MyButton>
 
 This way, you can maintain control over the appearance of slotted content without requiring users to apply styles themselves.
 
+However, it is not a best practice to apply too many styles to slotted content, the reason is the slotted content is projected by users, we don't know too much detail for their requirments, so applying too many styles directly to slotted content may breaks users original design spec and let them frustrating.
+
+The best practice should be **we only apply styles to the wrapper element of slotted content**, most of these styles are about layout, eg: margin, padding, min-width, min-height and etc. These styles will not break users' design spec in general, we usually use them to ensure the component's behavior could be compatible with any complex scenarios.
+
 ## `::part()` Pseudo-Element Selector and the `part` and `exportparts` Attributes
 
-The `::part()` pseudo-element selector allows developers to expose parts of a shadow DOM element for styling from outside the component. This is done by assigning a `part` attribute to internal elements and then styling them using `::part()` from outside the shadow DOM.
+### `::part()` and `part`
 
-```html
-<div part="button">Click me!</div>
-```
+The `::part()` pseudo-element selector allows developers to expose parts of a shadow-dom element for styling from outside the component. This is done by assigning a `part` attribute to internal elements and then styling them using `::part()` from outside the shadow-dom, let update our button component first:
 
-From outside the component, you can style the exposed `part`:
+```ts
+@customElement('my-button')
+export class MyButton extends LitElement {
+  // omit other snippets...
 
-```css
-my-component::part(button) {
-  background-color: var(--primary-color);
-  border-radius: 5px;
+  override render() {
+    return html`<button part="base"><slot></slot></button>`;
+  }
 }
 ```
 
-### Why We Need BEM Naming Conventions for it
+From outside the component, you can style the exposed `part`, let say we prefer to apply a green theme and some highly customizations:
 
-When using `part` and `exportparts`, it's a good practice to follow the BEM (Block-Element-Modifier) naming convention to keep your code modular and maintainable. BEM naming ensures that your parts are clearly defined and prevents conflicts when composing or extending web components.
+```css
+my-button.highly-customized::part(base) {
+  background-color: #28a745;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 12px 36px;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
 
-For example:
+my-button.highly-customized::part(base):hover {
+  background-color: #34d399;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+my-button.highly-customized::part(base):active {
+  background-color: #28a745;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transform: scale(0.98);
+}
+```
 
 ```html
-<div part="button__icon button__label"></div>
+<my-button class="highly-customized"> I am Highly Customized </my-button>
 ```
 
-This structure makes it easier to understand the relationships between different elements and to apply styles consistently across components. It also helps when working with the `exportparts` attribute, which allows you to expose shadow DOM parts from a nested component to its parent.
+<style dangerouslySetInnerHTML>
+  {`my-button.highly-customized::part(base) {
+      background: #28a745;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      padding: 12px 36px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+
+    my-button.highly-customized::part(base):hover {
+      background: #34d399;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    my-button.highly-customized::part(base):active {
+      background: #28a745;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transform: scale(0.98);
+    }`}
+</style>
+
+<MyButton class="highly-customized" client:only="lit">
+  <span>I am Highly Customized</span>
+</MyButton>
+
+### `::part()` and `exportparts`
+
+The effect of `exportparts` is when obeying the composition pattern to compose the web components, the deeper shadow-dom tree will embed into the parent shadow-dom tree, in this situation, the parent dom cannot use `::part()` to select the elements within the deeper shadow-dom(the depth is morn than **1**).
+
+Let's implement a web component called `my-button-group` first with `lit`:
+
+```ts
+import { LitElement, html, css } from 'lit';
+import { customElement, property } from 'lit/decorators.js';
+
+@customElement('my-button-group')
+export class MyButtonGroup extends LitElement {
+  @property({ type: Array })
+  buttons: string[] = [];
+
+  static styles = css`
+    ::slotted(button) {
+      background-color: #28a745;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      padding: 12px 36px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+      cursor: pointer;
+      margin: 0 8px;
+    }
+
+    ::slotted(button:hover) {
+      background-color: #34d399;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
+
+    ::slotted(button:active) {
+      background-color: #28a745;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transform: scale(0.98);
+    }
+
+    .button-group {
+      display: flex;
+      align-items: center;
+      gap: 0.5em;
+    }
+  `;
+
+  override render() {
+    return html`<div part="base" class="button-group">${this.buttons.map((button, idx) => html`<my-button>${button}</my-button>`)}</div>`;
+  }
+}
+```
+
+You could find we also declare a `part` attribute on host element of `my-button-group` here called `base`, in this way, we cannot selector the host element of `my-button` anymore, because there is naming conflict here.
+
+To resolve the naming conflict here, we could apply `exportparts` attribute on `my-button` element like:
+
+```ts
+@customElement('my-button-group')
+export class MyButtonGroup extends LitElement {
+  // omit other snippets...
+
+  override render() {
+    return html`<div part="base" class="button-group">
+      ${this.buttons.map((button, idx) => html`<my-button exportparts=${`base:my-button__base-${idx + 1}`}>${button}</my-button>`)}
+    </div>`;
+  }
+}
+```
+
+We declare a `exportparts` attribute compounding with its index value(`1` based) on each `my-button`, so if we attend to highly customize the second `my-button`, we could use `::part(my-button__base-2)` to select it, like:
+
+```css
+my-button-group.highly-customized::part(my-button__base-2) {
+  background: #28a745;
+  color: white;
+  font-size: 16px;
+  font-weight: bold;
+  padding: 12px 36px;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+my-button-group.highly-customized::part(my-button__base-2):hover {
+  background: #34d399;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+my-button-group.highly-customized::part(my-button__base-2):active {
+  background: #28a745;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  transform: scale(0.98);
+}
+```
 
 ```html
-<child-component exportparts="button__icon, button__label"></child-component>
+<my-button-group class="highly-customized"></my-button-group>
 ```
 
-By adhering to the BEM convention, you ensure that your components remain scalable and that styling across nested components remains organized and predictable.
+<style dangerouslySetInnerHTML>
+  {`my-button-group.highly-customized::part(my-button__base-2) {
+      background: #28a745;
+      color: white;
+      font-size: 16px;
+      font-weight: bold;
+      padding: 12px 36px;
+      border: none;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
 
-## Conclusion
+    my-button-group.highly-customized::part(my-button__base-2):hover {
+      background: #34d399;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+    }
 
-Styling web components provides flexibility and encapsulation, enabling us to create reusable and customizable UI elements. With techniques like CSS variables, `:host()` and `::slotted()` selectors, and the `::part()` pseudo-element selector, we can build components that not only look great but are also highly maintainable.
+    my-button-group.highly-customized::part(my-button__base-2):active {
+      background: #28a745;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transform: scale(0.98);
+    }`}
+</style>
 
-By following best practices such as using BEM naming for `part` and `exportparts`, we ensure that our code remains scalable and easy to manage in large-scale applications. Happy styling!
+<MyButtonGroup class="highly-customized" buttons={['Button1', 'Button2', 'Button3']} client:only="lit"></MyButtonGroup>
 
-```
+Please note that the better approach here is we should use `<slot>` to stand for the projected content into `my-button-group` rather than the element property, the example here is just for demo purpose for uasge of `exportparts` attribute.
 
-Feel free to adjust this draft as needed. Would you like help implementing any specific sections in your actual blog platform?
-```
+This styling technology has the highest flexibility we could provide to our users, because we delegate the element control to them, they could apply additional styles as they wish.
+
+However, the best practice here is do not export all of the internal elements with `part` or `exportparts` attribute, we should only export those primary elements that affecting the design spec.
+
+On the other hand, if we could satisfy the customization requreiments with other technologies mentioned above, we should use them, because they are more simple and declarive.
+
+### Why We Need BEM Naming Conventions here
+
+You could also find the naming conversion of `exportparts` here is obeying the [BEM Naming Conventions](https://getbem.com/). Why we do that? Is it possible to simply re-export it as `my-button-base-2` or `my-button-2`?
+
+Absolutely, we could, the value of `exportparts` alias part could be arbitrary value as you wish.
+
+However, because the purpose of `exportparts` is we are trying to re-export some elements with `part` attribute again, it is better that we could distinguish easily which parts we are exporing.
+
+With BEM, we could reach this purpose without checking the implementation detail of child components by reading the `exportparts` only.
+
+## Summary
+
+Styling web components provides flexibility and encapsulation, enabling us to create reusable and customizable UI elements. Depends on real scenarios, we should evaluate carefully which technology we should approach.
+
+Anyway, my suggestion is following:
+
+- design token related: use css variables directly
+- need conditional assertion on some scenarios for host element: use `:host()` and `:host-context()`
+- need to apply layout styles to slotted content: use `::slotted()`
+- provide the full control: use `part`, `exportparts` attributes and `::part()` selector
+
+## Reference
+
+- [:host()](https://developer.mozilla.org/en-US/docs/Web/CSS/:host_function)
+  , [:host-context()](https://developer.mozilla.org/en-US/docs/Web/CSS/:host-context), [::slotted()](https://developer.mozilla.org/en-US/docs/Web/CSS/::slotted), [::part()](https://developer.mozilla.org/en-US/docs/Web/CSS/::part), [part](https://developer.mozilla.org/en-US/docs/Web/API/Element/part), [exportparts](https://developer.mozilla.org/en-US/docs/Web/HTML/Global_attributes/exportparts)
+- [CSS Parts Inspired by BEM](https://www.abeautifulsite.net/posts/css-parts-inspired-by-bem/)
