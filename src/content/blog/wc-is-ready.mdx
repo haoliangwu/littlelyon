@@ -1,0 +1,183 @@
+---
+title: Web Component is ready in 2024
+excerpt: In 2024, web components have emerged as a mature and powerful toolset for modern web development. Initially introduced by the W3C to enhance the modularity and reusability of code, web components have since evolved into a core technology, embraced by developers and major frameworks alike. With their ability to encapsulate HTML, CSS, and JavaScript, they offer an elegant solution to building custom, reusable elements that work seamlessly across all browsers without the need for third-party libraries.
+publishDate: 2024/09/09
+tags:
+  - web component
+seo:
+  image:
+    src: '/images/wc/excerpt.jpg'
+    alt: 'Web Component is ready in 2024'
+---
+
+In 2024, web components have emerged as a mature and powerful toolset for modern web development. Initially introduced by the W3C to enhance the modularity and reusability of code, web components have since evolved into a core technology, embraced by developers and major frameworks alike. With their ability to encapsulate HTML, CSS, and JavaScript, they offer an elegant solution to building custom, reusable elements that work seamlessly across all browsers without the need for third-party libraries.
+
+## The Frameworks Popularity of 2023
+
+[Front-end frameworks popularity report](https://gist.github.com/tkrotoff/b1caa4c3a185629299ec234d2314e190)
+
+Based on the statistics in the above Excel sheet, we observe the following trends:
+
+- React remains the most popular MVVM framework in daily use.
+- React, Vue, and Angular continue to hold their positions as the top three MVVM frameworks in the frontend community.
+- Newer MVVM frameworks, such as Solid, Svelte, and Lit, have seen a significant increase in users over the past three years.
+- However, React and Vue have experienced a decline in users by approximately 10% to 15%, while Angular's user base has remained relatively stable.
+
+## Vendor Lock-in Issue
+
+In general, a vendor lock-in occurs when a customer is stuck with a product, software or service because a migration or switch would be too costly, difficult, risky, or resource-intensive.
+
+The vendor lock-in issue is a really overall topic to discuss, but the current frontend development suffer from it since more and more projects facing issues like:
+
+- too costly to upgrade framework to its latest version
+- too costly to migrate one framework to another one
+- it is impossible to reuse the existed solution coupling with a specific framework
+- there are many duplicated codebase across the different projects if the implementation coupled with a specific framework
+- ...etc
+
+Let's make some examples based on several projects I engaged in:
+
+### Nuxt 3 Migration
+
+One project is created 5 years ago with Vue 2 and Nuxt 2, these tech stacks are really popular at that time, however, we have to consider migrate this project, because following reasons:
+
+- Vue 2 will reach EOL status at end of 2023
+- Nuxt 2 will reach EOL status at end of Jun 2024
+- The open source solutions of Vue 2 and Nuxt 2 are out-of-date and stopped support maintenance and issue report
+  So we have to consider migrate it to Nuxt 3 recently.
+
+Another fact is the Nuxt 4 has released in Q1 2024, although it is only contains minor improvements and features.
+
+About "How to migration the project to Nuxt 3" is beyond of this article, the point here is normally it is impossible to apply large-scale migration for a B2C project. Because we need to support operations of PROD env continuously, so we cannot just freeze code and start the migration works.
+
+### The Shaka-player Migration
+
+The AMS migration project require each application to migrate the original AMS player to shaka-player, however, because the affected projects are implemented in totally different tech stacks:
+
+- The most old project: with pure JS and Jquery
+- Relative new project: with Next 12
+- The most new project: with Next 13
+- The project mentioned above: with Nuxt 2
+
+As far as I know, each of these projects migrated the shaka-player on their own codebase, however the major migration logic are same and similar. It is obvious we spent additional and duplicated cost for these projects.
+
+Besides the object reason like the developers didn't abstract the general solution for media player, the most critical factor is the projects are implemented on different tech stacks like the mvvm framework. Even though the developer would like to abstract and reuse the general solution across the projects, it is impossible basically.
+
+## About the Web Component
+
+Web Components are a set of web platform APIs that allow developers to create reusable, encapsulated HTML elements that work across modern browsers. These custom elements, built using standardized technologies, can be used alongside standard HTML tags and are often considered the **future of web development for building scalable and maintainable components.**
+
+The most benefits of web component is, it is framework agnostic, it means any component implemented with web-component could works well with any existed frameworks or tech stacks.
+
+Web Components comprise four main technologies:
+
+- Custom Elements: Define new HTML elements.
+- Shadow DOM: Provides encapsulation for styles and markup.
+- HTML Templates: Enables reusable HTML fragments.
+- ES Modules: Supports modular JavaScript code.
+
+Most of these technologies are Web Standard, it means they will not be out-of-date or deprecated quickly, at the same time, many implementation details of these technologies are handled by browser, basically it is not possible to say "the google stop supporting maintenance works for chrome, right?".
+
+### History of Web Components
+
+Web Components were first introduced by Google in 2011. The idea was to create reusable and interoperable custom elements that can work across web projects. However, adoption was slow in the early years due to:
+
+- Limited browser support.
+- The complexity of working with Polyfills.
+- Alternative approaches (e.g., frameworks like Angular, React, Vue) gaining more traction.
+  Over time, browser vendors started standardizing Web Components, making the technology native to all modern browsers.
+
+By 2018, all major browsers (Chrome, Firefox, Safari, Edge) began supporting Web Components natively, marking a significant milestone in the adoption of the technology.
+
+### Latest Developments
+
+In recent years, Web Components have matured significantly, with advancements including:
+
+- Broader Native Support: Full adoption by modern browsers, reducing the need for Polyfills.
+- Enhanced Tooling: Libraries like Lit (by Google) provide lightweight solutions to streamline the development of Web Components.
+- Framework Integration: Tools like StencilJS enable the seamless integration of Web Components into frameworks like React, Angular, and Vue.
+- Component Registries: Platforms like [webcomponents.org](http://webcomponents.org/) make it easy for developers to share and discover reusable Web Components.
+
+Web Components are now seen as a viable alternative to framework-specific components, with potential use cases in design systems, component libraries, and micro frontends.
+
+## Compatibility on 2024
+
+Let's see the compatibility on 2024 about the fundamental technologies of web-component:
+
+### [Custom Elements](https://caniuse.com/custom-elementsv1)
+
+![the compatibility of Custom Elements](/images/wc-is-ready/img1.png)
+
+### [Shadow DOM](https://caniuse.com/shadowdomv1)
+
+![the compatibility of Shadow DOM](/images/wc-is-ready/img2.png)
+
+### [HTML Templates](https://caniuse.com/template)
+
+![the compatibility of HTML Templates](/images/wc-is-ready/img3.png)
+
+### [ES Modules](https://caniuse.com/es6)
+
+![the compatibility of ES Modules](/images/wc-is-ready/img4.png)
+
+You could find all of them are Baseline Status of 2024, so what's the meaning of "Baseline" here? It is:
+
+![the Baseline Status of Web Component](/images/wc-is-ready/img5.png)
+
+So we could safely use it from now.
+
+## Framework Agnostic Tech Solutions on 2024
+
+### [Web Component](https://developer.mozilla.org/en-US/docs/Web/API/Web_components)
+
+Web Component is a suite of different technologies allowing you to create reusable custom elements — with their functionality encapsulated away from the rest of your code — and utilize them in your web apps.
+
+- [Lit Element](https://lit.dev/)
+  - Lit Element is a popular mvvm framework for web component right now.
+- [Shoelace](https://shoelace.style/)
+  - Shoelace is a UI library based on Lit and first-class support for React
+- [Material Web](https://github.com/material-components/material-web)
+  - The material design V3 components library based on lit.
+
+### MVVM Frameworks
+
+Those frameworks support Custom Elements API:
+
+- [preact](https://preactjs.com/guide/v10/web-components/#creating-a-web-component)
+- [svelte](https://svelte.dev/docs/custom-elements-api)
+- [vue 3](https://vuejs.org/api/custom-elements)
+- [angular](https://angular.dev/guide/elements)
+
+Those frameworks doesn't support Custom Elements API but have 3rd party libraries to support it:
+
+- [react + react-web-component](https://github.com/LukasBombach/react-web-component)
+- [solid + solid-element](https://www.npmjs.com/package/solid-element)
+
+Note that besides the MVVM frameworks based on web component itself, like lit, many MVVM frameworks have already support compiling web component assets directly through their Custom Elements API.
+
+So, this proves that the tool layer is also aware of the issue, and various frameworks are striving to align themselves with the web standards of web components to plan their future development paths.
+
+### Meta Frameworks
+
+- [Astro](https://docs.astro.build/en/getting-started/)
+  - Astro is the web framework for building content-driven websites, it is framework agnostic and all-in-one framework.
+
+### Tool Chain
+
+- [Vike](https://vike.dev/)
+  - Vike is called vite-plugin-ssr at beginning, it is a framework and deployment agnostic ssr plugin based on vite and it is full-fledged yet minimal.
+
+### Micro Frontends
+
+- [single-spa](https://single-spa.js.org/docs/getting-started-overview)
+  - single-spa is a framework for bringing together multiple JavaScript microfrontends in a frontend application.
+  - although its name is include "spa", it supports ssr currently which enable micro frontends to several meta frameworks like Next.js or Nuxt.js, see.
+
+## Reference
+
+- [And You Thought Buttons Were Easy?](https://medium.com/eightshapes-llc/and-you-thought-buttons-were-easy-26eb5b5c1871)
+
+  - An article explaining the hidden costs of duplicating UI components, which may have been overlooked in your project estimation.
+
+- [The Hundred-Year Web Component Darkness is Over](https://medium.com/@withinsight1/the-hundred-year-web-component-darkness-is-over-c70695a8f9c1)
+  - An article isn’t a post about Web Components vs. [whatever framework], but how they can live in harmony. It cover a few recent happenings, and how legacy challenges can leverage modern solutions.
